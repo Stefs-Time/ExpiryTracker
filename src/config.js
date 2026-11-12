@@ -27,6 +27,9 @@ const schema = z.object({
   REMINDERS_ENABLED: bool(true),
   SIGNUP_ENABLED: bool(true),
   TRUST_PROXY: z.coerce.number().int().min(0).default(1),
+  ADMIN_EMAIL: z.string().trim().toLowerCase().email('ADMIN_EMAIL must be an email address').optional().or(z.literal('')),
+  ADMIN_PASSWORD: z.string().min(12, 'ADMIN_PASSWORD must be at least 12 characters').max(128).optional().or(z.literal('')),
+  ADMIN_NAME: z.string().trim().min(1).max(80).optional().default('Platform Admin'),
 });
 
 const parsed = schema.safeParse(process.env);
@@ -67,4 +70,9 @@ export const config = Object.freeze({
   },
   remindersEnabled: env.REMINDERS_ENABLED,
   signupEnabled: env.SIGNUP_ENABLED,
+  bootstrapAdmin: {
+    email: env.ADMIN_EMAIL || '',
+    password: env.ADMIN_PASSWORD || '',
+    name: env.ADMIN_NAME,
+  },
 });

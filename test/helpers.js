@@ -7,7 +7,7 @@ export const ORIGIN = 'http://127.0.0.1';
 
 export async function setupDb() {
   await migrate();
-  await pool.query('TRUNCATE users, items, item_renewals, password_resets, reminder_log, session CASCADE');
+  await pool.query('TRUNCATE users, items, item_renewals, password_resets, reminder_log, session, admin_audit CASCADE');
 }
 
 export function newApp() {

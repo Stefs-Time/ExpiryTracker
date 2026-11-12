@@ -3,6 +3,7 @@ import { api, setCsrfToken } from './api.js';
 import { $, $$, toast, showFormError, busy, formData, wireStrengthMeter } from './ui.js';
 import { initDashboard, loadItems, render, setUser as setDashUser, resetDashboard } from './dashboard.js';
 import { initSettings, showSettings } from './settings.js';
+import { initAdmin, showAdmin } from './admin.js';
 import { todayIn } from './shared/expiry.js';
 
 let user = null;
@@ -39,6 +40,7 @@ function setUser(u) {
     render();
   }
   $$('[data-auth="in"]').forEach((el) => { el.hidden = !u; });
+  $$('[data-admin-only]').forEach((el) => { el.hidden = !u?.isAdmin; });
 }
 
 /** Remove cached personal API responses (offline copy) — on sign-in, sign-out and session end. */
@@ -92,6 +94,11 @@ async function route() {
   $('#view-auth').hidden = !AUTH_ROUTES.includes(path);
   $('#view-dashboard').hidden = !(user && path === '');
   $('#view-settings').hidden = !(user && path === 'settings');
+  if (path === 'admin' && !user?.isAdmin) {
+    location.replace('#/');
+    return;
+  }
+  $('#view-admin').hidden = !(user && path === 'admin');
 
   if (AUTH_ROUTES.includes(path)) {
     const target = path === 'signup' && !signupEnabled ? 'login' : path;
@@ -105,6 +112,9 @@ async function route() {
     $('.form-ok', $('#form-forgot')).hidden = true;
     document.title = { login: 'Sign in', signup: 'Create account', forgot: 'Reset password', reset: 'New password' }[target] + ' · VaultExpiry';
     form.querySelector('input')?.focus();
+  } else if (path === 'admin') {
+    document.title = 'Admin console · VaultExpiry';
+    await showAdmin(user);
   } else if (path === 'settings') {
     document.title = 'Settings · VaultExpiry';
     await showSettings();
@@ -272,6 +282,7 @@ async function boot() {
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => applyTheme(currentTheme()));
 
   initDashboard();
+  initAdmin();
   initSettings({
     getUser: () => user,
     setUser: (u) => setUser(u),

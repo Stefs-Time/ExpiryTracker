@@ -8,12 +8,13 @@ import rateLimit from 'express-rate-limit';
 import { config } from './config.js';
 import { pool } from './db/pool.js';
 import { csrfProtection, noStore } from './middleware/security.js';
-import { requireUser } from './middleware/auth.js';
+import { requireUser, requireAdmin } from './middleware/auth.js';
 import { errorHandler, notFoundApi } from './middleware/errors.js';
 import authRoutes from './routes/auth.js';
 import itemRoutes from './routes/items.js';
 import accountRoutes from './routes/account.js';
 import reportRoutes from './routes/reports.js';
+import adminRoutes from './routes/admin.js';
 import { findByCalendarToken } from './services/users.js';
 import { allItems } from './services/items.js';
 import { buildCalendar } from './services/calendar.js';
@@ -126,6 +127,7 @@ export function createApp() {
   api.use('/items', requireUser, itemRoutes);
   api.use('/account', requireUser, accountRoutes);
   api.use('/reports', requireUser, reportRoutes);
+  api.use('/admin', requireUser, requireAdmin, adminRoutes);
   api.use(notFoundApi);
 
   app.use('/api', api);

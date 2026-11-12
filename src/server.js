@@ -4,9 +4,36 @@ import { pool } from './db/pool.js';
 import { migrate } from './db/migrate.js';
 import { createApp } from './app.js';
 import { startReminderScheduler, stopReminderScheduler } from './services/reminders.js';
+import { seedAdmin } from './services/admin.js';
+
+/**
+ * Optional boot-time admin bootstrap (handy on Railway, where one-off scripts are awkward).
+ * Creates the admin account if it does not exist. It never promotes an existing normal
+ * account (someone could have registered that email first) and never overwrites a
+ * password, so ADMIN_PASSWORD can (and should) be removed after the first boot.
+ */
+async function bootstrapAdmin() {
+  const { email, password, name } = config.bootstrapAdmin;
+  if (!email) return;
+  try {
+    const { action } = await seedAdmin({ email, password, displayName: name, allowPromote: false });
+    if (action === 'refused_existing_user') {
+      logger.warn('ADMIN_EMAIL belongs to an existing non-admin account; not promoting it automatically. '
+        + 'Verify the account is yours, then run: npm run admin:seed -- --email <email>');
+      return;
+    }
+    if (action !== 'unchanged') logger.info('Platform admin bootstrap', { email, action });
+    if (password && action === 'unchanged') {
+      logger.warn('ADMIN_PASSWORD is still set but the admin already exists; remove it from the environment');
+    }
+  } catch (err) {
+    logger.error('Platform admin bootstrap failed', { email, err: err.message });
+  }
+}
 
 async function main() {
   await migrate();
+  await bootstrapAdmin();
   const app = createApp();
   const server = app.listen(config.port, '0.0.0.0', () => {
     logger.info('VaultExpiry listening', { port: config.port, env: config.env });

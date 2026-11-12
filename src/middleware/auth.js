@@ -1,5 +1,5 @@
 import { findById } from '../services/users.js';
-import { unauthorized } from '../lib/errors.js';
+import { unauthorized, forbidden } from '../lib/errors.js';
 import { ensureCsrfToken } from './security.js';
 
 /** Promisified session helpers. */
@@ -29,7 +29,7 @@ export async function requireUser(req, res, next) {
     const userId = req.session?.userId;
     if (!userId) throw unauthorized();
     const user = await findById(userId);
-    if (!user || new Date(user.password_changed_at).toISOString() !== req.session.pwdAt) {
+    if (!user || user.disabled_at || new Date(user.password_changed_at).toISOString() !== req.session.pwdAt) {
       await destroySession(req);
       throw unauthorized('Your session has ended. Please sign in again.');
     }
@@ -38,4 +38,10 @@ export async function requireUser(req, res, next) {
   } catch (err) {
     next(err);
   }
+}
+
+/** Must run after requireUser. Role is read from the database on every request, never from the session. */
+export function requireAdmin(req, res, next) {
+  if (req.user?.role !== 'admin') return next(forbidden('Administrator access required'));
+  return next();
 }

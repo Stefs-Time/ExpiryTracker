@@ -16,7 +16,8 @@ export const ICONS = [
   'crosshair', 'credit-card', 'globe', 'file-badge', 'umbrella', 'heart-pulse', 'repeat', 'rotate-cw', 'pencil',
   'trash-2', 'sun', 'moon', 'monitor', 'log-out', 'settings', 'download', 'calendar', 'user', 'mail', 'lock',
   'eye', 'eye-off', 'history', 'wifi-off', 'refresh-cw', 'arrow-left', 'printer', 'link', 'file-spreadsheet',
-  'calendar-sync', 'upload',
+  'calendar-sync', 'upload', 'users', 'user-x', 'user-check', 'key-round', 'lock-open', 'shield-user',
+  'scroll-text', 'chevron-left', 'chevron-right',
 ];
 
 const symbols = [];

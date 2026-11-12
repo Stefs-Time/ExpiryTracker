@@ -67,7 +67,7 @@ export async function runReminderPass(now = new Date()) {
     try {
       const { rows: users } = await client.query(
         `SELECT id, email, display_name, timezone, critical_days, warning_days
-         FROM users WHERE email_reminders = TRUE`,
+         FROM users WHERE email_reminders = TRUE AND disabled_at IS NULL`,
       );
       for (const user of users) {
         if (localHour(user.timezone, now) < SEND_AFTER_LOCAL_HOUR) continue;

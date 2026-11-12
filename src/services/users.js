@@ -18,7 +18,7 @@ async function getDummyHash() {
 export const hashPassword = (pw) => argon2.hash(pw, HASH_OPTS);
 
 const USER_COLUMNS = `id, email, display_name, timezone, critical_days, warning_days, email_reminders,
-  (calendar_token_hash IS NOT NULL) AS has_calendar_feed, password_changed_at, created_at`;
+  (calendar_token_hash IS NOT NULL) AS has_calendar_feed, role, disabled_at, password_changed_at, created_at`;
 
 export function toPublicUser(row) {
   return {
@@ -30,6 +30,7 @@ export function toPublicUser(row) {
     warningDays: row.warning_days,
     emailReminders: row.email_reminders,
     hasCalendarFeed: row.has_calendar_feed,
+    isAdmin: row.role === 'admin',
     createdAt: row.created_at,
   };
 }
@@ -43,8 +44,8 @@ export async function createUser({ email, password, displayName, timezone }) {
   const passwordHash = await hashPassword(password);
   try {
     const { rows } = await query(
-      `INSERT INTO users (email, password_hash, display_name, timezone)
-       VALUES ($1, $2, $3, $4) RETURNING ${USER_COLUMNS}`,
+      `INSERT INTO users (email, password_hash, display_name, timezone, last_login_at)
+       VALUES ($1, $2, $3, $4, now()) RETURNING ${USER_COLUMNS}`,
       [email, passwordHash, displayName, timezone],
     );
     return rows[0];
@@ -57,7 +58,7 @@ export async function createUser({ email, password, displayName, timezone }) {
 /** Verify credentials with per-account lockout after repeated failures. */
 export async function authenticate(email, password) {
   const { rows } = await query(
-    'SELECT id, password_hash, failed_logins, locked_until FROM users WHERE email = $1',
+    'SELECT id, password_hash, failed_logins, locked_until, disabled_at FROM users WHERE email = $1',
     [email],
   );
   const user = rows[0];
@@ -78,10 +79,14 @@ export async function authenticate(email, password) {
     );
     throw unauthorized('Incorrect email or password');
   }
+  // Checked only after a correct password, so disabled status is not revealed to guessers.
+  if (user.disabled_at) {
+    throw new AppError(403, 'ACCOUNT_DISABLED', 'This account has been disabled. Contact support.');
+  }
   if (argon2.needsRehash(user.password_hash, HASH_OPTS)) {
     await query('UPDATE users SET password_hash = $2 WHERE id = $1', [user.id, await hashPassword(password)]);
   }
-  await query('UPDATE users SET failed_logins = 0, locked_until = NULL WHERE id = $1', [user.id]);
+  await query('UPDATE users SET failed_logins = 0, locked_until = NULL, last_login_at = now() WHERE id = $1', [user.id]);
   return findById(user.id);
 }
 
@@ -144,7 +149,7 @@ export async function deleteUser(userId) {
 
 /** Create a single-use password reset token. Returns null when the email is unknown. */
 export async function createPasswordReset(email) {
-  const { rows } = await query('SELECT id, display_name, email FROM users WHERE email = $1', [email]);
+  const { rows } = await query('SELECT id, display_name, email FROM users WHERE email = $1 AND disabled_at IS NULL', [email]);
   const user = rows[0];
   if (!user) return null;
   const { token, hash } = newToken();
@@ -164,7 +169,9 @@ export async function consumePasswordReset(token, newPassword) {
   return withTransaction(async (client) => {
     const { rows } = await client.query(
       `SELECT id, user_id FROM password_resets
-       WHERE token_hash = $1 AND used_at IS NULL AND expires_at > now() FOR UPDATE`,
+       WHERE token_hash = $1 AND used_at IS NULL AND expires_at > now()
+         AND user_id IN (SELECT id FROM users WHERE disabled_at IS NULL)
+       FOR UPDATE`,
       [hashToken(token)],
     );
     if (!rows[0]) throw new AppError(400, 'INVALID_TOKEN', 'This reset link is invalid or has expired');
@@ -186,6 +193,9 @@ export async function revokeCalendarToken(userId) {
 }
 
 export async function findByCalendarToken(token) {
-  const { rows } = await query(`SELECT ${USER_COLUMNS} FROM users WHERE calendar_token_hash = $1`, [hashToken(token)]);
+  const { rows } = await query(
+    `SELECT ${USER_COLUMNS} FROM users WHERE calendar_token_hash = $1 AND disabled_at IS NULL`,
+    [hashToken(token)],
+  );
   return rows[0] || null;
 }

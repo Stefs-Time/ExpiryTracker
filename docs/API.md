@@ -20,7 +20,7 @@ Base path: `/api`. JSON in, JSON out. Authentication uses an HttpOnly session co
 |---|---|---|
 | 400 | `BAD_REQUEST`, `INVALID_TOKEN` | Malformed JSON; invalid or expired reset token |
 | 401 | `UNAUTHORIZED` | Not signed in, wrong credentials, or the session was revoked |
-| 403 | `FORBIDDEN`, `SIGNUP_DISABLED` | CSRF / origin check failed; sign-up closed |
+| 403 | `FORBIDDEN`, `SIGNUP_DISABLED`, `ACCOUNT_DISABLED` | CSRF / origin check failed; not an admin; sign-up closed; account disabled by an admin (shown only after a correct password) |
 | 404 | `NOT_FOUND` | Unknown resource, or one that belongs to another user |
 | 409 | `CONFLICT`, `LIMIT_REACHED` | Email already registered; more than 1000 items |
 | 413 | `PAYLOAD_TOO_LARGE` | Body over 32 KB (1 MB for import) |
@@ -109,6 +109,36 @@ Rate limits per IP: login 10 per 15 min, signup 5 per hour, forgot/reset 5 per h
 | DELETE | `/calendar-token` | – | 204 |
 | GET | `/export` | – | JSON download of the account and all items |
 | DELETE | `/` | `{ password }` | 204. Deletes the account, items, history and sessions |
+
+## Admin — `/api/admin` (platform admins only)
+
+Requires a signed-in user with `role = 'admin'`. The role is read from the database on every request. Non-admins get 403, anonymous callers 401. Mutations follow the same CSRF rules, plus a limit of 60 per minute per IP. **No admin endpoint returns item contents**, only counts. Every mutation writes to the audit log.
+
+Admin user object:
+
+```json
+{
+  "id": "uuid", "email": "bob@example.com", "displayName": "Bob", "role": "user",
+  "status": "active | locked | disabled", "createdAt": "…", "lastLoginAt": "…", "disabledAt": null,
+  "lockedUntil": null, "failedLogins": 0, "emailReminders": true, "timezone": "Africa/Johannesburg",
+  "itemCount": 6, "activeSessions": 2
+}
+```
+
+| Method | Path | Body / query | Result |
+|---|---|---|---|
+| GET | `/stats` | – | `{ users, admins, disabled, newLast30Days, activeLast30Days, items, remindersLast30Days, mailConfigured }` |
+| GET | `/users` | `q` (name/email), `status` (`active`/`locked`/`disabled`), `role` (`user`/`admin`), `sort` (`created`, `-created`, `email`, `lastLogin`), `page`, `limit` (1–200, default 50) | Admin user objects + pagination `meta` |
+| GET | `/users/:id` | – | Admin user object |
+| POST | `/users/:id/password-reset` | – | With SMTP: emails the user, returns `{ emailed: true }`. Without SMTP: `{ emailed: false, link, expiresInMinutes: 60 }`. 409 if the account is disabled |
+| POST | `/users/:id/unlock` | – | Clears failed-login lockout |
+| POST | `/users/:id/sign-out` | – | Revokes all of the user's sessions |
+| POST | `/users/:id/disable` | – | Blocks sign-in, sessions, reminders, calendar feed and resets. 403 on yourself, 409 if already disabled |
+| POST | `/users/:id/enable` | – | 409 if not disabled |
+| DELETE | `/users/:id` | `{ confirmEmail }` (must match the user's email) | 204. 403 on yourself or another admin |
+| GET | `/audit` | `page`, `limit`, `userId?` | `[{ id, adminEmail, action, targetUserId, targetEmail, ip, createdAt }]`, newest first |
+
+Role changes are not available over HTTP. Use `npm run admin:seed` (see README).
 
 ## Public endpoints
 

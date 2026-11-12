@@ -32,6 +32,7 @@ Browser (PWA) ──HTTPS──► Railway edge ──► Express
 | `password_resets` | SHA-256 of reset tokens, expiry, used-at |
 | `reminder_log` | `(item_id, expiry_date, stage)` primary key, so each reminder stage is sent at most once per expiry date. Renewing creates a new expiry date and re-arms the stages |
 | `session` | connect-pg-simple session store |
+| `admin_audit` | Append-only log of admin actions. Keeps the target's email, so entries survive account deletion |
 
 CHECK constraints mirror the zod validation (lengths, enum, ranges, `warning_days > critical_days`, lowercase email), so bad data can't get in through any code path. Migrations are plain SQL files applied in order, inside transactions, under an advisory lock.
 
@@ -56,13 +57,22 @@ CHECK constraints mirror the zod validation (lengths, enum, ranges, `warning_day
 | Errors | Clients get stable codes and safe messages; stack traces go only to structured server logs |
 | Config | Validated at startup; the process refuses to start without `DATABASE_URL`, a ≥32-char `SESSION_SECRET`, and `APP_URL` in production |
 
+### Platform admin model
+
+- **Role** is a `users.role` column (`user` | `admin`). It's loaded from the database on every request by `requireUser` and checked by `requireAdmin`, never trusted from the session, so a demotion takes effect immediately.
+- **Privacy boundary:** `src/services/admin.js` selects only account metadata and aggregate counts. No admin query touches item titles, references, notes or dates, and no endpoint lets an admin impersonate a user. Tests assert that seeded item contents, password hashes and calendar tokens never appear in admin responses.
+- **Password resets** reuse the normal single-use, hashed, 60-minute reset tokens. With SMTP, the link goes only to the user. Without SMTP, the admin receives the link (audited as `password_reset_link`). That's an inherent takeover capability, which is why it's logged. Admins can never set a password directly.
+- **Disable** sets `disabled_at`. Login, session validation, password reset, the calendar feed and reminders all check it, and sessions are revoked at once. A disabled status is only revealed after a correct password.
+- **Escalation controls:** promotion is CLI-only (`npm run admin:seed`). The boot-time bootstrap only creates a missing account and never promotes an existing one, which blocks squatting on `ADMIN_EMAIL` via public sign-up. Admins can't disable or delete themselves or delete other admins. Demotion refuses to remove the last active admin, with row locks preventing concurrent races.
+- **Audit:** every mutating admin action and its audit row are written in the same transaction.
+
 ### Accepted risks / follow-ups
 
 - **Calendar feed URLs** are bearer secrets. Anyone holding one can read item titles, references and dates. Users can rotate or revoke them in Settings.
 - **Offline cache:** the last item list is stored in the browser's Cache Storage until sign-out. On a shared device, users should sign out.
 - **`DATABASE_SSL=true`** encrypts but does not verify the server certificate (Railway's public proxy uses its own certificate). Prefer the private-network `DATABASE_URL`.
 - **In-memory rate limits** are per instance.
-- **Not yet implemented:** email verification, 2FA/passkeys.
+- **Not yet implemented:** email verification, 2FA/passkeys. 2FA matters most for admin accounts.
 
 ## Frontend
 

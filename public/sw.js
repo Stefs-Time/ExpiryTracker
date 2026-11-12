@@ -6,7 +6,7 @@
  * - Everything else under /api, and all non-GET requests: network only.
  * Bump VERSION whenever any shell file changes.
  */
-const VERSION = 'v1.0.2';
+const VERSION = 'v1.1.0';
 const SHELL_CACHE = `vx-shell-${VERSION}`;
 const DATA_CACHE = 'vx-data';
 const SHELL = [
@@ -20,6 +20,7 @@ const SHELL = [
   '/js/ui.js',
   '/js/dashboard.js',
   '/js/settings.js',
+  '/js/admin.js',
   '/js/shared/expiry.js',
   '/manifest.webmanifest',
   '/icons/favicon.svg',
