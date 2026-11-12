@@ -10,8 +10,41 @@ export function esc(value) {
 export const icon = (name, cls = 'icon') => `<svg class="${cls}" aria-hidden="true"><use href="/icons.svg#i-${name}"/></svg>`;
 
 let toastTimer;
+let toastRemaining = 0;
+let toastStarted = 0;
+const supportsPopover = typeof HTMLElement !== 'undefined' && 'showPopover' in HTMLElement.prototype;
+
+function hideToast() {
+  const el = $('#toast');
+  el.classList.remove('show');
+  if (supportsPopover) setTimeout(() => { if (!el.classList.contains('show') && el.matches(':popover-open')) el.hidePopover(); }, 260);
+}
+
+function armToastTimer(ms) {
+  clearTimeout(toastTimer);
+  toastRemaining = ms;
+  toastStarted = Date.now();
+  toastTimer = setTimeout(hideToast, ms);
+}
+
+/** Pause the auto-hide while the pointer or keyboard focus is on the toast (WCAG 2.2.1). */
+export function initToast() {
+  const el = $('#toast');
+  const pause = () => { clearTimeout(toastTimer); toastRemaining -= Date.now() - toastStarted; };
+  const resume = () => { if (el.classList.contains('show')) armToastTimer(Math.max(toastRemaining, 1500)); };
+  el.addEventListener('mouseenter', pause);
+  el.addEventListener('mouseleave', resume);
+  el.addEventListener('focusin', pause);
+  el.addEventListener('focusout', resume);
+}
+
 export function toast(message, { error = false, action, onAction, duration = 3500 } = {}) {
   const el = $('#toast');
+  // Re-entering the top layer puts the toast above any modal dialog opened since.
+  if (supportsPopover) {
+    if (el.matches(':popover-open')) el.hidePopover();
+    el.showPopover();
+  }
   $('#toast-msg').textContent = message;
   el.classList.toggle('error', error);
   el.querySelector('use').setAttribute('href', `/icons.svg#i-${error ? 'circle-alert' : 'circle-check'}`);
@@ -21,13 +54,34 @@ export function toast(message, { error = false, action, onAction, duration = 350
   if (action) {
     btn.textContent = action;
     btn.onclick = () => {
-      el.classList.remove('show');
+      hideToast();
       onAction?.();
     };
   }
-  el.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), action ? Math.max(duration, 6000) : duration);
+  requestAnimationFrame(() => el.classList.add('show'));
+  armToastTimer(action ? Math.max(duration, 10_000) : duration);
+}
+
+/**
+ * Styled confirmation dialog (replaces window.confirm).
+ * tone: 'danger' (red, destructive) | 'warning' (amber) | 'primary' (green, routine).
+ */
+export function confirmDialog({ title, text, ok = 'Confirm', tone = 'danger', icon: iconName }) {
+  const dlg = $('#confirm-dialog');
+  const icons = { danger: 'trash-2', warning: 'triangle-alert', primary: 'circle-check' };
+  $('#confirm-title').textContent = title;
+  $('#confirm-text').textContent = text;
+  const okBtn = $('#confirm-ok');
+  okBtn.textContent = ok;
+  okBtn.className = `btn ${tone === 'danger' ? 'btn-danger' : 'btn-primary'}`;
+  const iconWrap = $('#confirm-icon');
+  iconWrap.className = `title-icon ${tone === 'danger' ? 'red' : tone === 'warning' ? 'amber' : ''}`;
+  iconWrap.querySelector('use').setAttribute('href', `/icons.svg#i-${iconName || icons[tone]}`);
+  dlg.returnValue = '';
+  dlg.showModal();
+  // Destructive actions start on Cancel; routine ones on the confirm button.
+  (tone === 'danger' ? dlg.querySelector('button[value="cancel"]') : okBtn).focus();
+  return new Promise((resolve) => dlg.addEventListener('close', () => resolve(dlg.returnValue === 'confirm'), { once: true }));
 }
 
 /** Show an error message inside a form (and mark invalid fields from API details). */

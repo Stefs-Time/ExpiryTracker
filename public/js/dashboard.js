@@ -1,6 +1,6 @@
 /** Dashboard: banner, KPIs, filters, cards, item/renew/confirm dialogs and the status report. */
 import { api } from './api.js';
-import { $, $$, esc, icon, toast, showFormError, busy, formData, copyText } from './ui.js';
+import { $, $$, esc, icon, toast, showFormError, busy, formData, copyText, confirmDialog } from './ui.js';
 import {
   CATEGORIES, CATEGORY_KEYS, summarise, formatDate, formatCycle, suggestRenewalDate, addMonths, isISODate,
 } from './shared/expiry.js';
@@ -51,6 +51,7 @@ export async function loadItems() {
     state.loaded = true;
     state.offline = offline;
     $('#sync-status').textContent = offline ? 'Offline copy' : 'Synced';
+    $('#sync-dot').classList.toggle('offline', offline);
   } catch (err) {
     if (err.status === 401) return;
     state.loaded = true;
@@ -93,6 +94,12 @@ export function render() {
 
   const grid = $('#cards-grid');
   const empty = $('#empty-state');
+  // Remember which card control had focus so keyboard users don't get dumped on <body>.
+  const active = document.activeElement;
+  const focusKey = active && grid.contains(active) && active.dataset.id
+    ? { id: active.dataset.id, action: active.dataset.action }
+    : lastFocusKey;
+  lastFocusKey = null;
   if (!filtered.length) {
     grid.innerHTML = '';
     empty.hidden = !state.loaded;
@@ -111,7 +118,17 @@ export function render() {
     // Widths are applied via CSSOM (allowed by CSP) rather than inline style attributes.
     $$('.bar > span', grid).forEach((s) => { s.style.width = `${s.dataset.pct}%`; });
   }
+  if (focusKey && (document.activeElement === document.body || !document.activeElement)) {
+    const target = grid.querySelector(`[data-id="${CSS.escape(focusKey.id)}"][data-action="${focusKey.action}"]`)
+      || grid.querySelector('[data-action]')
+      || $('header [data-action="add-item"]');
+    target?.focus({ preventScroll: false });
+  }
 }
+
+/** Set by actions that are about to re-render, so render() can restore focus after dialogs close. */
+let lastFocusKey = null;
+export function rememberFocus(id, action) { lastFocusKey = { id, action }; }
 
 function renderBanner(items, counts) {
   const banner = $('#banner');
@@ -163,7 +180,7 @@ function cardHTML(i) {
           <button type="button" class="icon-btn danger" data-action="delete" data-id="${id}" aria-label="Delete ${esc(i.title)}" title="Delete">${icon('trash-2')}</button>
         </span>
       </div>
-      <h3>${esc(i.title)}</h3>
+      <h2>${esc(i.title)}</h2>
       <div class="card-meta">
         ${i.ref ? `<span class="ref">${esc(i.ref)}</span>` : ''}
         <span class="cycle">${esc(formatCycle(i.cycleMonths))} CYCLE</span>
@@ -244,6 +261,7 @@ async function submitItem(e) {
   await busy(form, async () => {
     try {
       if (f.id) {
+        rememberFocus(f.id, 'edit');
         const { data } = await api(`/items/${f.id}`, { method: 'PATCH', body });
         state.items = state.items.map((i) => (i.id === data.id ? data : i));
         toast(`Updated "${data.title}"`);
@@ -291,6 +309,7 @@ async function submitRenew(e) {
   if (!isISODate(newExpiryDate)) return showFormError(form, { message: 'Choose a valid date', details: [{ field: 'newExpiryDate' }] });
   await busy(form, async () => {
     try {
+      rememberFocus(id, 'renew');
       const { data } = await api(`/items/${id}/renew`, { method: 'POST', body: { newExpiryDate } });
       state.items = state.items.map((i) => (i.id === data.id ? data : i));
       $('#renew-dialog').close();
@@ -305,19 +324,10 @@ async function submitRenew(e) {
 
 /* ---------------- Delete with undo ---------------- */
 
-function confirmDialog(title, text, okLabel = 'Delete') {
-  const dlg = $('#confirm-dialog');
-  $('#confirm-title').textContent = title;
-  $('#confirm-text').textContent = text;
-  $('#confirm-ok').textContent = okLabel;
-  dlg.returnValue = '';
-  dlg.showModal();
-  return new Promise((resolve) => dlg.addEventListener('close', () => resolve(dlg.returnValue === 'confirm'), { once: true }));
-}
-
 async function deleteItem(item) {
   if (state.offline || !navigator.onLine) return toast("You're offline — changes are disabled.", { error: true });
-  if (!(await confirmDialog('Delete item?', `"${item.title}" and its renewal history will be removed.`))) return;
+  if (!(await confirmDialog({ title: 'Delete item?', text: `"${item.title}" and its renewal history will be removed.`, ok: 'Delete', tone: 'danger' }))) return;
+  rememberFocus(item.id, 'delete');
   try {
     await api(`/items/${item.id}`, { method: 'DELETE' });
     state.items = state.items.filter((i) => i.id !== item.id);

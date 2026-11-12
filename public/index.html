@@ -20,7 +20,7 @@
   <script type="module" src="/js/app.js"></script>
 </head>
 <body>
-  <a href="#main" class="sr-only">Skip to content</a>
+  <a href="#main" class="sr-only skip-link">Skip to content</a>
   <div id="offline-bar" class="offline-bar" hidden role="status">
     <svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-wifi-off"/></svg>
     You're offline — showing your last synced data. Changes are disabled until you reconnect.
@@ -28,9 +28,9 @@
 
   <header class="app-header">
     <div class="container">
-      <a class="brand" href="#/" aria-label="VaultExpiry home">
+      <a class="brand" href="#/">
         <span class="brand-mark"><svg class="icon" aria-hidden="true"><use href="/icons.svg#i-shield-check"/></svg></span>
-        <span>
+        <span class="brand-text">
           <span class="brand-name">VaultExpiry</span>
           <span class="brand-sub">Licences, cards &amp; documents — renewed on time</span>
         </span>
@@ -49,16 +49,16 @@
             <span class="label-optional">Add item</span>
           </button>
           <div class="menu">
-            <button type="button" class="avatar" id="user-menu-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="user-menu" aria-label="Account menu">?</button>
-            <div class="menu-panel" id="user-menu" role="menu" hidden>
+            <button type="button" class="avatar" id="user-menu-btn" aria-expanded="false" aria-controls="user-menu" aria-label="Account menu">?</button>
+            <div class="menu-panel" id="user-menu" hidden>
               <div class="menu-head"><strong id="menu-name"></strong><span id="menu-email"></span></div>
-              <a class="menu-item" role="menuitem" href="#/settings">
+              <a class="menu-item" href="#/settings">
                 <svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-settings"/></svg>Settings
               </a>
-              <a class="menu-item" role="menuitem" href="#/admin" data-admin-only hidden>
+              <a class="menu-item" href="#/admin" data-admin-only hidden>
                 <svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-shield-user"/></svg>Admin console
               </a>
-              <button class="menu-item" role="menuitem" type="button" data-action="logout">
+              <button class="menu-item" type="button" data-action="logout">
                 <svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-log-out"/></svg>Sign out
               </button>
             </div>
@@ -203,7 +203,7 @@
 
         <div id="empty-state" class="empty" hidden>
           <div class="empty-icon"><svg class="icon icon-lg" aria-hidden="true"><use href="/icons.svg#i-folder-search"/></svg></div>
-          <h3 id="empty-title">No matching items</h3>
+          <h2 id="empty-title">No matching items</h2>
           <p id="empty-text">Try clearing your search or filters.</p>
           <div id="empty-actions"></div>
         </div>
@@ -359,7 +359,7 @@
 
   <footer class="app-footer" data-auth="in" hidden>
     <div class="container">
-      <span><span class="pulse" aria-hidden="true"></span><span id="sync-status">Synced</span> · Today <span class="mono" id="footer-today"></span></span>
+      <span><span class="pulse" id="sync-dot" aria-hidden="true"></span><span id="sync-status">Synced</span> · Today <span class="mono" id="footer-today"></span></span>
       <span>Masked references only · Never store full card or ID numbers</span>
     </div>
   </footer>
@@ -435,7 +435,7 @@
     <form method="dialog" class="dialog-shell">
       <div class="dialog-head">
         <div class="dialog-title">
-          <span class="title-icon red"><svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-trash-2"/></svg></span>
+          <span class="title-icon red" id="confirm-icon"><svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-trash-2"/></svg></span>
           <h2 id="confirm-title">Delete item?</h2>
         </div>
       </div>
@@ -525,7 +525,7 @@
     </div>
   </dialog>
 
-  <div id="toast" class="toast" role="status" aria-live="polite">
+  <div id="toast" class="toast" role="status" aria-live="polite" popover="manual">
     <svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-circle-check"/></svg>
     <span id="toast-msg"></span>
     <button type="button" class="btn btn-sm btn-ghost" id="toast-action" hidden></button>

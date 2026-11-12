@@ -8,6 +8,7 @@ import rateLimit from 'express-rate-limit';
 import { config } from './config.js';
 import { pool } from './db/pool.js';
 import { csrfProtection, noStore } from './middleware/security.js';
+import { accessLog } from './middleware/access-log.js';
 import { requireUser, requireAdmin } from './middleware/auth.js';
 import { errorHandler, notFoundApi } from './middleware/errors.js';
 import authRoutes from './routes/auth.js';
@@ -52,6 +53,7 @@ export function createApp() {
       referrerPolicy: { policy: 'same-origin' },
     }),
   );
+  app.use(accessLog);
   app.use((req, res, next) => {
     res.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
     next();

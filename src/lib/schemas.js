@@ -1,3 +1,4 @@
+import './zod-messages.js'; // must load before any schema is used
 import { z } from 'zod';
 import { CATEGORY_KEYS, STATUSES, isISODate, isValidTimeZone } from '../../public/js/shared/expiry.js';
 

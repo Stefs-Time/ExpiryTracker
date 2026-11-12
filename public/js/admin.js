@@ -1,6 +1,6 @@
 /** Admin console: platform stats, user management, audit log. Shows account metadata only. */
 import { api } from './api.js';
-import { $, esc, icon, toast, showFormError, busy, formData, copyText } from './ui.js';
+import { $, esc, icon, toast, showFormError, busy, formData, copyText, confirmDialog } from './ui.js';
 
 const state = { page: 1, totalPages: 1, q: '', status: '', role: '', users: [], me: null };
 
@@ -98,21 +98,13 @@ async function loadAudit() {
   } catch { /* non-critical */ }
 }
 
-function confirmAction(title, text, okLabel) {
-  const dlg = $('#confirm-dialog');
-  $('#confirm-title').textContent = title;
-  $('#confirm-text').textContent = text;
-  $('#confirm-ok').textContent = okLabel;
-  dlg.returnValue = '';
-  dlg.showModal();
-  return new Promise((resolve) => dlg.addEventListener('close', () => resolve(dlg.returnValue === 'confirm'), { once: true }));
-}
+const confirmAction = (title, text, ok, tone = 'primary', icon) => confirmDialog({ title, text, ok, tone, icon });
 
 async function runAction(action, user) {
   const refresh = () => Promise.all([loadUsers(), loadStats(), loadAudit()]);
   try {
     if (action === 'reset') {
-      if (!(await confirmAction('Reset password?', `${user.email} will get a link to choose a new password. Their current password keeps working until they use it.`, 'Send reset'))) return;
+      if (!(await confirmAction('Reset password?', `${user.email} will get a link to choose a new password. Their current password keeps working until they use it.`, 'Send reset', 'primary', 'key-round'))) return;
       const { data } = await api(`/admin/users/${user.id}/password-reset`, { method: 'POST' });
       if (data.emailed) {
         toast(`Reset link emailed to ${user.email}`);
@@ -125,11 +117,11 @@ async function runAction(action, user) {
       await api(`/admin/users/${user.id}/unlock`, { method: 'POST' });
       toast(`Unlocked ${user.email}`);
     } else if (action === 'sign-out') {
-      if (!(await confirmAction('Sign out everywhere?', `${user.email} will be signed out on every device.`, 'Sign out'))) return;
+      if (!(await confirmAction('Sign out everywhere?', `${user.email} will be signed out on every device.`, 'Sign out', 'warning', 'log-out'))) return;
       await api(`/admin/users/${user.id}/sign-out`, { method: 'POST' });
       toast(`Signed out ${user.email} everywhere`);
     } else if (action === 'disable') {
-      if (!(await confirmAction('Disable account?', `${user.email} will be signed out and won't be able to sign in, get reminders or use their calendar link until you re-enable the account. Their data is kept.`, 'Disable'))) return;
+      if (!(await confirmAction('Disable account?', `${user.email} will be signed out and won't be able to sign in, get reminders or use their calendar link until you re-enable the account. Their data is kept.`, 'Disable', 'danger', 'user-x'))) return;
       await api(`/admin/users/${user.id}/disable`, { method: 'POST' });
       toast(`Disabled ${user.email}`);
     } else if (action === 'enable') {

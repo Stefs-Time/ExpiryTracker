@@ -1,6 +1,6 @@
 /** App bootstrap: session, hash router, auth forms, theme, PWA service worker. */
 import { api, setCsrfToken } from './api.js';
-import { $, $$, toast, showFormError, busy, formData, wireStrengthMeter } from './ui.js';
+import { $, $$, toast, showFormError, busy, formData, wireStrengthMeter, initToast } from './ui.js';
 import { initDashboard, loadItems, render, setUser as setDashUser, resetDashboard } from './dashboard.js';
 import { initSettings, showSettings } from './settings.js';
 import { initAdmin, showAdmin } from './admin.js';
@@ -55,6 +55,7 @@ async function signedIn(data) {
   resetDashboard();
   location.hash = '#/';
   await route();
+  $('#main').focus({ preventScroll: true });
   loadItems();
   api('/auth/me').catch(() => {}); // prime the offline copy of the session
 }
@@ -81,6 +82,9 @@ function parseHash() {
 async function route() {
   const { path, params } = parseHash();
   $('#user-menu').hidden = true;
+  $('#user-menu-btn').setAttribute('aria-expanded', 'false');
+  // Never leave a modal open over a different page (Back button, session expiry, sign-out).
+  $$('dialog[open]').forEach((d) => d.close());
 
   if (!user && !AUTH_ROUTES.includes(path)) {
     location.replace('#/login');
@@ -108,7 +112,13 @@ async function route() {
     });
     $$('[data-signup-link]').forEach((a) => { a.hidden = !signupEnabled; });
     const form = $(`[data-auth-form="${target}"]`);
-    if (target === 'reset') form.dataset.token = params.get('token') || '';
+    if (target === 'reset') {
+      form.dataset.token = params.get('token') || '';
+      if (!form.dataset.token) {
+        showFormError(form, { message: 'This reset link is incomplete. Copy the full link from your email, or request a new one.' });
+      }
+      form.querySelector('[type="submit"]').disabled = !form.dataset.token;
+    }
     $('.form-ok', $('#form-forgot')).hidden = true;
     document.title = { login: 'Sign in', signup: 'Create account', forgot: 'Reset password', reset: 'New password' }[target] + ' · VaultExpiry';
     form.querySelector('input')?.focus();
@@ -224,7 +234,7 @@ function wireMenu() {
   const setOpen = (open) => {
     panel.hidden = !open;
     btn.setAttribute('aria-expanded', String(open));
-    if (open) panel.querySelector('[role="menuitem"]')?.focus();
+    if (open) panel.querySelector('.menu-item')?.focus();
   };
   btn.addEventListener('click', () => setOpen(panel.hidden));
   document.addEventListener('click', (e) => {
@@ -281,6 +291,7 @@ async function boot() {
   });
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => applyTheme(currentTheme()));
 
+  initToast();
   initDashboard();
   initAdmin();
   initSettings({

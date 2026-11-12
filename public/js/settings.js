@@ -1,6 +1,6 @@
 /** Settings view: profile/thresholds, calendar feed, password, import/export, account deletion. */
 import { api, setCsrfToken } from './api.js';
-import { $, toast, showFormError, busy, formData, copyText } from './ui.js';
+import { $, toast, showFormError, busy, formData, copyText, confirmDialog } from './ui.js';
 
 let ctx; // { getUser, setUser, onSignedOut, reloadItems }
 
@@ -87,7 +87,7 @@ async function changePassword(e) {
 async function deleteAccount(e) {
   e.preventDefault();
   const form = e.currentTarget;
-  if (!window.confirm('Permanently delete your account and all items?')) return;
+  if (!(await confirmDialog({ title: 'Delete your account?', text: 'Your account and every tracked item will be permanently deleted. This cannot be undone.', ok: 'Delete account', tone: 'danger' }))) return;
   await busy(form, async () => {
     try {
       await api('/account', { method: 'DELETE', body: formData(form) });
@@ -128,7 +128,7 @@ export function initSettings(context) {
     const t = e.target.closest('[data-action]');
     if (!t) return;
     if (t.dataset.action === 'rotate-feed') {
-      if (ctx.getUser().hasCalendarFeed && !window.confirm('Generate a new link? Calendars using the old link will stop updating.')) return;
+      if (ctx.getUser().hasCalendarFeed && !(await confirmDialog({ title: 'Generate a new link?', text: 'Calendars subscribed with the old link will stop updating until you add the new one.', ok: 'Generate link', tone: 'warning', icon: 'calendar-sync' }))) return;
       try {
         const { data } = await api('/account/calendar-token', { method: 'POST' });
         ctx.setUser({ ...ctx.getUser(), hasCalendarFeed: true });
