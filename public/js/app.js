@@ -1,7 +1,7 @@
 /** App bootstrap: session, hash router, auth forms, theme, PWA service worker. */
 import { api, setCsrfToken, features } from './api.js';
 import { $, $$, toast, showFormError, busy, formData, wireStrengthMeter, initToast } from './ui.js';
-import { initDashboard, loadItems, render, setUser as setDashUser, resetDashboard } from './dashboard.js';
+import { initDashboard, loadItems, render, setUser as setDashUser, resetDashboard, stashDraft, offerDraft } from './dashboard.js';
 import { initSettings, showSettings } from './settings.js';
 import { initAdmin, showAdmin } from './admin.js';
 import { todayIn } from './shared/expiry.js';
@@ -56,7 +56,7 @@ async function signedIn(data) {
   location.hash = '#/';
   await route();
   $('#main').focus({ preventScroll: true });
-  loadItems();
+  loadItems().then(offerDraft);
   api('/auth/me').catch(() => {}); // prime the offline copy of the session
 }
 
@@ -306,6 +306,7 @@ async function boot() {
 
   window.addEventListener('vx:unauthorized', () => {
     if (!user) return;
+    stashDraft();
     clearOfflineData();
     setCsrfToken(null);
     setUser(null);

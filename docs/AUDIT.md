@@ -1,4 +1,79 @@
-# VaultExpiry — UAT, UA, UI, UX & EX audit
+# VaultExpiry — quality audits
+
+Two audit rounds, newest first. Round 1 covered the core app and admin console. Round 2 re-tested everything and added the photo/AI-scan features, security and privacy probes, performance at volume, and test coverage.
+
+---
+
+# Round 2 — full UI, UX, UAT & testing audit (with fixes)
+
+**Date:** 12 Nov 2026 · **Build audited:** `a4cf4c7` (after document photos + AI scan) · **Re-tested after fixes:** same day
+
+## Method
+
+| Area | What was done |
+|---|---|
+| Regression | Re-ran all round-1 suites: axe-core on 22 screen/theme combinations, 29 UAT scenarios, keyboard walkthrough, responsive 320–1440 px, admin console |
+| New UAT | 11 photo/scan scenarios against a mock Groq with switchable responses (ok / no expiry / unreadable / HTTP 500 / 429): consent decline, non-image files, 24 MP photos, provider failures, edit-mode scans, undo with photos, keyboard use, photo limits, offline |
+| Security & privacy | Photo response headers, admin access to photos, log hygiene (image bytes or extracted values in logs), production-mode safety |
+| Performance | 500 items imported: API latency and payload, full render, search |
+| Testing | Coverage measured with `node --test --experimental-test-coverage`; untested paths identified and covered |
+
+Results were cross-checked before being reported. Four apparent failures came from my measurement scripts, not the app (photo size read from a Blob body, programmatic vs. keyboard focus, a duplicate card title, and polling overhead in a timing test). Each was re-verified directly (database row, real Tab focus, in-page timer) and passed.
+
+## Results
+
+| Metric | Before round 2 | After fixes |
+|---|---|---|
+| UAT scenarios (round 1 + photo) | 29/29 + 8/11 photo | **29/29 + 11/11** |
+| axe-core violations (all screens incl. photo UI, both themes) | 0 | **0** |
+| Automated tests | 57 (API/unit) | **67 API/unit + 10 end-to-end** |
+| Line / branch coverage | 93.2% / 81.4% | **94.0% / 82.5%**, enforced in CI (≥ 90% / ≥ 78%) |
+| 500-item load | API 21 ms (138 KB), render 188 ms, search 174 ms | unchanged |
+| Horizontal overflow, 320–1440 px | none | none |
+
+## Findings and fixes
+
+| ID | Area | Sev. | Finding | Fix |
+|---|---|---|---|---|
+| R2-01 | UX / data | **High** | **Undo after delete lost the item's photos** and renewal history. Undo re-created a new item, and the photos had already been deleted with the original. The confirm text didn't mention photos | **Soft delete.** `DELETE` marks the item deleted, and Undo calls `POST /items/:id/restore`, which brings back the original (same ID, photos, history) within 60 minutes. A 10-minute maintenance job then purges it permanently. The confirm text now names the photos. Every query (lists, reports, calendar, reminders, export, admin counts, photo access) excludes deleted items |
+| R2-02 | UX | **High** | **At the 4-photo limit,** the dialog still offered to save the photo. The upload failed, and the "Updated" success message **overwrote the error**, so users weren't told their photo wasn't saved | Dialog knows the item's photo count: it hides "Save this photo" and explains the limit, and deleting a photo frees the slot. Upload failures are returned to the caller, which shows **one** message, and errors take priority |
+| R2-03 | UX / data | Medium | When a scan found **no expiry date**, the form kept the placeholder date (today + 1 year), so a skimming user could save a wrong date | New items: the placeholder is cleared and marked invalid, focus moves to the date, and Save asks for one. When editing, the existing date is kept |
+| R2-04 | Security | Medium | `NODE_ENV` defaulted to `development`. **Forgetting it on Railway** would have shipped non-`Secure` session cookies and **written email bodies (incl. reset links) to logs** | On Railway, `NODE_ENV` defaults to `production`. Startup then also requires `APP_URL`, failing loudly instead of running insecurely |
+| R2-05 | UX | Medium | Typed item details were **lost when a session expired** mid-edit (round-1 R-03) | The open form is stashed in this tab's `sessionStorage`, tied to the user and kept for up to 2 hours. After signing in again, a "Restore" prompt reopens it. Never shown to a different account |
+| R2-06 | Ops | Low | Expired and used **password-reset tokens accumulated** forever | Purged by the maintenance job |
+| R2-07 | Testing | Medium | Untested paths: **reminder retry after a mail failure**, AI provider network failure, malformed JSON / oversized bodies, unusual JPEG structures; no committed browser tests | 10 new API tests (incl. a test-only SMTP failure hook proving claims are released and retried), plus a committed **end-to-end suite** (`e2e/`, Playwright + axe-core) as its own CI job |
+| R2-08 | Testing | Low | An early run of the new end-to-end accessibility scan reported a contrast failure that turned out to be the dialog's fade-in animation (4.42:1 mid-fade, passes when settled) | End-to-end tests run with `prefers-reduced-motion: reduce`, which the CSS honours, so scans are deterministic |
+
+### Verified working (round 2)
+
+- **Photo scanning:**
+  - Declining consent sends nothing to Groq and keeps the photo.
+  - Non-images get a friendly message.
+  - A 6000×4000 photo is stored at 2000×1333, 129 KB.
+  - Unreadable photos, HTTP 500 and 429 responses each get a specific next-step message, and the photo is kept.
+  - Edit-mode scans change only the expiry date and reference.
+- **Keyboard:** the photo button is keyboard-operable with a visible focus ring.
+- **Photo labels:** the photo icon and viewer images have meaningful names ("View 1 photo of …", "Front of …").
+- **Offline:** adding is blocked with a clear message.
+- **Photo responses:** `private, no-store`, `nosniff`, `CORP same-origin`. The platform admin gets **404** for a user's photo.
+- **Logs:** in production mode they contain no image data or extracted values. Request logs record paths only, and scan logs record model, latency, tokens and outcome.
+
+### Still open (carried forward)
+
+From round 1, still open: R-01 (admin 2FA/passkeys), R-02 (real screen readers and iOS Safari), R-05 (email verification), R-06 (admin audit filters / CSV export / user notifications), R-07 (disable buttons while offline), R-08 (manifest screenshots), R-09 (anonymous `/auth/me` 401 console noise), R-10 (report table caption). New in round 2:
+
+| ID | Sev. | Recommendation |
+|---|---|---|
+| R2-R1 | High | **Test the real Groq model** on real South African documents (driver's licence card, licence disc, firearm licence, bank cards) and tune the prompt. Everything so far used a mock |
+| R2-R2 | Medium | Read the **back** of a card in the same scan (Groq allows up to 3 images per request) |
+| R2-R3 | Medium | `FILE_ENCRYPTION_KEY` **rotation** script (re-encrypt with a new key; `key_version` column already present) |
+| R2-R4 | Low | A "Recently deleted" view, so restore isn't only possible from the Undo prompt |
+
+Closed from round 1: **R-03** (draft lost on session expiry → R2-05) and **R-04** (Undo restores the original item → R2-01).
+
+---
+
+# Round 1 — UAT, UA, UI, UX & EX audit
 
 **Date:** 12 Nov 2026 · **Build audited:** `claude/elegant-feynman-hk2nui` (after the platform-admin commit) · **Re-tested after fixes:** same day
 
@@ -95,4 +170,4 @@ The audit scripts (Playwright and axe-core) run against a local server with the 
 npm run seed:demo && npm run admin:seed -- --email admin@vaultexpiry.local
 ```
 
-The scripts aren't committed: they need Chromium and `axe-core`, which aren't project dependencies. If you want this audit repeatable in CI, adopt them as a Playwright suite. That would be a worthwhile follow-up.
+*(Superseded in round 2: the key checks now live in the committed end-to-end suite, `npm run test:e2e`, which runs in CI.)*

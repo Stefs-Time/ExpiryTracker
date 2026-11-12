@@ -27,7 +27,7 @@ Browser (PWA) ──HTTPS──► Railway edge ──► Express
 | Table | Purpose |
 |---|---|
 | `users` | Account, Argon2id hash, timezone, thresholds, reminder opt-in, calendar-token hash, lockout counters |
-| `items` | Tracked items (`user_id` FK, `ON DELETE CASCADE`). Index `(user_id, expiry_date)` serves every list and report query |
+| `items` | Tracked items (`user_id` FK, `ON DELETE CASCADE`). `deleted_at` marks a soft delete (Undo window); every user-facing query filters `deleted_at IS NULL`, and the partial index `(user_id, expiry_date) WHERE deleted_at IS NULL` serves list and report queries. A 10-minute maintenance job hard-deletes rows past the 60-minute window, cascading to photos and history |
 | `item_renewals` | Audit trail of renewals |
 | `password_resets` | SHA-256 of reset tokens, expiry, used-at |
 | `reminder_log` | `(item_id, expiry_date, stage)` primary key, so each reminder stage is sent at most once per expiry date. Renewing creates a new expiry date and re-arms the stages |
@@ -74,6 +74,10 @@ CHECK constraints mirror the zod validation (lengths, enum, ranges, `warning_day
 - **Disable** sets `disabled_at`. Login, session validation, password reset, the calendar feed and reminders all check it, and sessions are revoked at once. A disabled status is only revealed after a correct password.
 - **Escalation controls:** promotion is CLI-only (`npm run admin:seed`). The boot-time bootstrap only creates a missing account and never promotes an existing one, which blocks squatting on `ADMIN_EMAIL` via public sign-up. Admins can't disable or delete themselves or delete other admins. Demotion refuses to remove the last active admin, with row locks preventing concurrent races.
 - **Audit:** every mutating admin action and its audit row are written in the same transaction.
+
+### Configuration safety
+
+`NODE_ENV` defaults to `production` when Railway's environment variables are present. A forgotten setting can't then ship development behaviour: non-`Secure` cookies, and email bodies (including reset links) written to logs.
 
 ### Accepted risks / follow-ups
 

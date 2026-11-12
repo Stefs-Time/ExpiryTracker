@@ -5,6 +5,7 @@ import { migrate } from './db/migrate.js';
 import { createApp } from './app.js';
 import { startReminderScheduler, stopReminderScheduler } from './services/reminders.js';
 import { seedAdmin } from './services/admin.js';
+import { startMaintenance, stopMaintenance } from './services/maintenance.js';
 
 /**
  * Optional boot-time admin bootstrap (handy on Railway, where one-off scripts are awkward).
@@ -46,6 +47,7 @@ async function main() {
   server.requestTimeout = 30_000;
 
   startReminderScheduler();
+  startMaintenance();
 
   let shuttingDown = false;
   const shutdown = (signal) => {
@@ -53,6 +55,7 @@ async function main() {
     shuttingDown = true;
     logger.info('Shutting down', { signal });
     stopReminderScheduler();
+    stopMaintenance();
     const force = setTimeout(() => process.exit(1), 10_000);
     force.unref();
     server.close(async () => {

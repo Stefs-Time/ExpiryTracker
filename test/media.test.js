@@ -173,7 +173,7 @@ describe('attachments (digital copies)', () => {
     assert.equal((await request(app).get(up.body.data.url)).status, 401);
   });
 
-  test('limits: 4 per item; deleting the item removes its photos', async () => {
+  test('limits: 4 per item; deleted items hide photos, purge removes them', async () => {
     const s = await signUp(app);
     const { body } = await s.post('/api/items').send(sampleItem());
     const base = `/api/items/${body.data.id}/attachments`;
@@ -181,7 +181,12 @@ describe('attachments (digital copies)', () => {
     const fifth = await upload(s, base, CARD);
     assert.equal(fifth.status, 409);
     assert.equal((await upload(s, `${base}?label=selfie`, CARD)).status, 422);
+    // Deleting hides the photos at once (undo window), and the purge removes them for good.
     await s.del(`/api/items/${body.data.id}`);
+    assert.equal((await s.get(base)).status, 404);
+    await pool.query("UPDATE items SET deleted_at = now() - interval '2 hours' WHERE id = $1", [body.data.id]);
+    const { runMaintenance } = await import('../src/services/maintenance.js');
+    await runMaintenance();
     const { rows } = await pool.query('SELECT count(*)::int AS n FROM item_attachments WHERE item_id = $1', [body.data.id]);
     assert.equal(rows[0].n, 0);
   });

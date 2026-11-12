@@ -78,7 +78,7 @@ export async function runReminderPass(now = new Date()) {
           `SELECT i.id, i.title, i.ref, i.expiry_date AS "expiryDate", i.cycle_months AS "cycleMonths",
                   i.lead_days AS "leadDays"
            FROM items i
-           WHERE i.user_id = $1
+           WHERE i.user_id = $1 AND i.deleted_at IS NULL
              AND i.expiry_date BETWEEN $2::date - 30 AND $2::date + $3::int
            ORDER BY i.expiry_date`,
           [user.id, today, horizon],

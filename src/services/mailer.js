@@ -23,6 +23,8 @@ function getTransport() {
 
 /** Collected messages when running tests, so behaviour can be asserted without SMTP. */
 export const outbox = [];
+/** Test-only: make the next N sends fail, to exercise retry paths. Ignored outside NODE_ENV=test. */
+export const testControls = { failNextSends: 0 };
 
 /**
  * Send an email. Without SMTP configured, development logs the message,
@@ -31,6 +33,10 @@ export const outbox = [];
  */
 export async function sendMail({ to, subject, text, html }) {
   if (config.isTest) {
+    if (testControls.failNextSends > 0) {
+      testControls.failNextSends -= 1;
+      throw new Error('Simulated SMTP failure');
+    }
     outbox.push({ to, subject, text, html });
     return true;
   }

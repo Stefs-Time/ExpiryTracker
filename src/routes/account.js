@@ -97,7 +97,8 @@ router.get('/export', async (req, res, next) => {
   try {
     const all = await items.allItems(req.user.id);
     const { rows: photos } = await query(
-      `SELECT id, item_id, label, byte_size, created_at FROM item_attachments WHERE user_id = $1 ORDER BY created_at`,
+      `SELECT a.id, a.item_id, a.label, a.byte_size, a.created_at FROM item_attachments a
+       JOIN items i ON i.id = a.item_id AND i.deleted_at IS NULL WHERE a.user_id = $1 ORDER BY a.created_at`,
       [req.user.id],
     );
     const payload = {

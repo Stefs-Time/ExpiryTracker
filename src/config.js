@@ -11,7 +11,10 @@ const bool = (def) =>
     .transform((v) => (v === undefined || v === '' ? def : v === 'true' || v === '1'));
 
 const schema = z.object({
-  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  // On Railway, default to production so a forgotten NODE_ENV can't ship development
+  // behaviour (non-Secure cookies, email bodies and reset links written to logs).
+  NODE_ENV: z.enum(['development', 'test', 'production'])
+    .default(process.env.RAILWAY_ENVIRONMENT_NAME || process.env.RAILWAY_PROJECT_ID ? 'production' : 'development'),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
   DATABASE_SSL: bool(false),

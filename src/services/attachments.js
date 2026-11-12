@@ -43,12 +43,12 @@ export function prepareImage(body) {
 }
 
 async function assertOwnsItem(client, userId, itemId) {
-  const { rows } = await client.query('SELECT id FROM items WHERE id = $1 AND user_id = $2 FOR UPDATE', [itemId, userId]);
+  const { rows } = await client.query('SELECT id FROM items WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL FOR UPDATE', [itemId, userId]);
   if (!rows[0]) throw notFound('Item not found');
 }
 
 export async function listAttachments(userId, itemId) {
-  const { rows: own } = await query('SELECT 1 FROM items WHERE id = $1 AND user_id = $2', [itemId, userId]);
+  const { rows: own } = await query('SELECT 1 FROM items WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL', [itemId, userId]);
   if (!own[0]) throw notFound('Item not found');
   const { rows } = await query(
     `SELECT ${META} FROM item_attachments WHERE item_id = $1 AND user_id = $2 ORDER BY created_at`,
@@ -92,8 +92,9 @@ export async function addAttachment(userId, itemId, { label = 'front', body }) {
 /** Decrypt and return the photo bytes. Ownership is enforced in SQL. */
 export async function readAttachment(userId, itemId, attachmentId) {
   const { rows } = await query(
-    `SELECT id, content_type, sha256, iv, auth_tag, data FROM item_attachments
-     WHERE id = $1 AND item_id = $2 AND user_id = $3`,
+    `SELECT a.id, a.content_type, a.sha256, a.iv, a.auth_tag, a.data FROM item_attachments a
+     JOIN items i ON i.id = a.item_id AND i.deleted_at IS NULL
+     WHERE a.id = $1 AND a.item_id = $2 AND a.user_id = $3`,
     [attachmentId, itemId, userId],
   );
   const r = rows[0];
@@ -104,7 +105,8 @@ export async function readAttachment(userId, itemId, attachmentId) {
 
 export async function deleteAttachment(userId, itemId, attachmentId) {
   const { rowCount } = await query(
-    'DELETE FROM item_attachments WHERE id = $1 AND item_id = $2 AND user_id = $3',
+    `DELETE FROM item_attachments a USING items i
+     WHERE a.id = $1 AND a.item_id = $2 AND a.user_id = $3 AND i.id = a.item_id AND i.deleted_at IS NULL`,
     [attachmentId, itemId, userId],
   );
   if (!rowCount) throw notFound('Photo not found');

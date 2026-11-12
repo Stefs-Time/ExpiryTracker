@@ -239,7 +239,7 @@ export function openItemDialog(item = null, template = null) {
   form.elements.note.value = src.note || '';
   form.dataset.touchedCycle = editing ? '1' : '';
   $$('.ai-filled', form).forEach((el) => el.classList.remove('ai-filled'));
-  resetPhotoUI({ editing });
+  resetPhotoUI({ editing, photoCount: item?.attachmentCount || 0 });
   dlg.showModal();
   form.elements.title.focus();
   if (editing) loadItemPhotos(item);
@@ -278,13 +278,61 @@ async function submitItem(e) {
       }
       // Upload the kept photo before closing (closing the dialog discards it).
       const photo = await uploadPendingFor(saved.id);
-      toast(`${f.id ? 'Updated' : 'Now tracking'} "${saved.title}"${photo ? ' with its photo' : ''}`);
+      const verb = f.id ? 'Updated' : 'Now tracking';
+      if (photo.error) {
+        toast(`${verb} "${saved.title}", but the photo wasn't saved: ${photo.error}`, { error: true, duration: 9000 });
+      } else {
+        toast(`${verb} "${saved.title}"${photo.uploaded ? ' with its photo' : ''}`);
+      }
       $('#item-dialog').close();
       render();
       loadItems(); // re-sync (also refreshes the offline copy)
     } catch (err) {
       showFormError(form, err);
     }
+  });
+}
+
+/* ---------------- Draft kept across a session expiry ---------------- */
+
+const DRAFT_KEY = 'vx-item-draft';
+const DRAFT_FIELDS = ['id', 'title', 'category', 'ref', 'expiryDate', 'cycleMonths', 'leadDays', 'note'];
+
+/** Called when the session ends: keep an open, unsaved item form for this tab (per user). */
+export function stashDraft() {
+  const dlg = $('#item-dialog');
+  if (!dlg.open || !state.user) return;
+  const form = $('#item-form');
+  const values = Object.fromEntries(DRAFT_FIELDS.map((k) => [k, form.elements[k]?.value ?? '']));
+  try {
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ userId: state.user.id, savedAt: Date.now(), values }));
+  } catch { /* storage unavailable: nothing to keep */ }
+}
+
+/** After sign-in, offer to reopen a draft that belongs to this user (max 2 hours old). */
+export function offerDraft() {
+  let draft;
+  try {
+    draft = JSON.parse(sessionStorage.getItem(DRAFT_KEY) || 'null');
+    sessionStorage.removeItem(DRAFT_KEY);
+  } catch { return; }
+  if (!draft || draft.userId !== state.user?.id || Date.now() - draft.savedAt > 2 * 3600_000) return;
+  const v = draft.values;
+  toast(`You had unsaved changes to "${v.title || 'an item'}" when you were signed out.`, {
+    action: 'Restore',
+    duration: 15_000,
+    onAction: () => {
+      const existing = v.id ? state.items.find((i) => i.id === v.id) : null;
+      openItemDialog(existing || null);
+      const form = $('#item-form');
+      for (const k of DRAFT_FIELDS) {
+        if (k === 'id' && !existing) continue;
+        const el = form.elements[k];
+        if (!el) continue;
+        if (k === 'cycleMonths' && ![...el.options].some((o) => o.value === v[k])) el.add(new Option(`${v[k]} months`, v[k]));
+        el.value = v[k];
+      }
+    },
   });
 }
 
@@ -335,7 +383,8 @@ async function submitRenew(e) {
 
 async function deleteItem(item) {
   if (state.offline || !navigator.onLine) return toast("You're offline — changes are disabled.", { error: true });
-  if (!(await confirmDialog({ title: 'Delete item?', text: `"${item.title}" and its renewal history will be removed.`, ok: 'Delete', tone: 'danger' }))) return;
+  const photos = item.attachmentCount ? `, its ${item.attachmentCount} photo${item.attachmentCount === 1 ? '' : 's'}` : '';
+  if (!(await confirmDialog({ title: 'Delete item?', text: `"${item.title}"${photos} and its renewal history will be deleted. You can undo straight after.`, ok: 'Delete', tone: 'danger' }))) return;
   rememberFocus(item.id, 'delete');
   try {
     await api(`/items/${item.id}`, { method: 'DELETE' });
@@ -345,9 +394,9 @@ async function deleteItem(item) {
     toast(`Removed "${item.title}"`, {
       action: 'Undo',
       onAction: async () => {
-        const { title, category, ref, expiryDate, cycleMonths, leadDays, note } = item;
         try {
-          const { data } = await api('/items', { method: 'POST', body: { title, category, ref, expiryDate, cycleMonths, leadDays, note } });
+          // Restores the original item (same id, photos and renewal history).
+          const { data } = await api(`/items/${item.id}/restore`, { method: 'POST' });
           state.items.push(data);
           render();
           toast(`Restored "${data.title}"`);

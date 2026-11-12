@@ -84,7 +84,8 @@ Rate limits per IP: login 10 per 15 min, signup 5 per hour, forgot/reset 5 per h
 | POST | `/` | Create, returns 201 + `Location` header |
 | GET | `/:id` | 404 if it isn't yours |
 | PATCH | `/:id` | Any subset of item fields |
-| DELETE | `/:id` | 204 |
+| DELETE | `/:id` | 204. **Soft delete:** the item, its photos and its history disappear from every endpoint immediately, can be restored for 60 minutes, and are then permanently purged |
+| POST | `/:id/restore` | Undo a delete within 60 minutes → 200 with the original item (same id, photos, history). 410 `GONE` after the window, or if the item isn't yours |
 | POST | `/:id/renew` | `{ newExpiryDate? }`. Without a date: one cycle after the current expiry, or after today if already expired. Records history |
 | GET | `/:id/renewals` | Last 50 renewals `{ previousExpiry, newExpiry, renewedAt }` |
 | POST | `/import` | `{ items: [ … ≤ 500 ] }` → `{ imported, skipped }`. Skips items whose title, category and expiry date match an existing one. Accepts the `items` array from `/account/export` |

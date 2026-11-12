@@ -6,14 +6,16 @@
  * drops EXIF metadata (GPS, device) at the source; the server strips it again.
  */
 import { api, features } from './api.js';
-import { $, esc, icon, toast } from './ui.js';
+import { $, esc, icon, toast, confirmDialog } from './ui.js';
 import { CATEGORIES, formatDate } from './shared/expiry.js';
 
 const MAX_SIDE = 2000; // px: enough to read small print, keeps uploads ~0.3–1.5 MB
 const MAX_INPUT_BYTES = 30 * 1024 * 1024;
 const MAX_UPLOAD_BYTES = 3.8 * 1024 * 1024;
+const MAX_PHOTOS_PER_ITEM = 4; // mirrors the server limit
 
 let pending = null; // { blob, url, width, height }
+let photosFull = false; // the item being edited already has the maximum number of photos
 
 /** Decode any browser-supported image, fix orientation, downscale, and encode as JPEG. */
 export async function prepareImage(file) {
@@ -69,15 +71,17 @@ function setStatus(html, tone = '') {
   el.hidden = !html;
 }
 
-export function resetPhotoUI({ editing }) {
+export function resetPhotoUI({ editing, photoCount = 0 }) {
   discardPending();
   setStatus('');
+  photosFull = features.attachmentsEnabled && photoCount >= MAX_PHOTOS_PER_ITEM;
   $('#scan-box').hidden = !(features.scanEnabled || features.attachmentsEnabled);
   $('#photo-btn-label').textContent = features.scanEnabled ? 'Scan or add a photo' : 'Add a photo';
   $('#scan-hint').textContent = features.scanEnabled
     ? (editing ? 'Scan a new card to update the expiry date. You check before saving.' : "We'll read the expiry date for you. You check every field before saving.")
     : 'Keep a digital copy of this document.';
-  $('#keep-photo-row').hidden = !features.attachmentsEnabled;
+  $('#keep-photo-row').hidden = !features.attachmentsEnabled || photosFull;
+  $('#photos-full-note').hidden = !photosFull;
   $('#item-photos').hidden = true;
   $('#photo-grid').innerHTML = '';
 }
@@ -94,6 +98,12 @@ const FIELD_ORDER = ['title', 'category', 'ref', 'expiryDate', 'cycleMonths', 'l
 
 function applySuggestion(form, s, { editing }) {
   const filled = [];
+  // A new item starts with a placeholder date; if the scan found none, clear it so the
+  // user can't save the placeholder by mistake (the form then requires a date).
+  if (!editing && !s.expiryDate) {
+    form.elements.expiryDate.value = '';
+    form.elements.expiryDate.setAttribute('aria-invalid', 'true');
+  }
   for (const key of FIELD_ORDER) {
     const value = s[key];
     if (value === null || value === undefined || value === '') continue;
@@ -124,7 +134,7 @@ async function onPhotoChosen(file, ctx) {
   pending = { ...prepared, url: URL.createObjectURL(prepared.blob) };
   $('#pending-img').src = pending.url;
   $('#pending-photo').hidden = !features.attachmentsEnabled && !features.scanEnabled;
-  $('#keep-photo').checked = features.attachmentsEnabled;
+  $('#keep-photo').checked = features.attachmentsEnabled && !photosFull;
 
   if (!features.scanEnabled) {
     setStatus('');
@@ -165,17 +175,17 @@ async function onPhotoChosen(file, ctx) {
 }
 
 /** Upload the pending photo after the item is saved (if the user kept it). */
+/** @returns {Promise<{ uploaded: boolean, error?: string }>} */
 export async function uploadPendingFor(itemId) {
-  if (!pending || !features.attachmentsEnabled || !$('#keep-photo').checked) return null;
+  if (!pending || !features.attachmentsEnabled || photosFull || !$('#keep-photo').checked) return { uploaded: false };
   const label = $('#pending-label').value;
   try {
-    const { data } = await api(`/items/${itemId}/attachments?label=${encodeURIComponent(label)}`, {
+    await api(`/items/${itemId}/attachments?label=${encodeURIComponent(label)}`, {
       method: 'POST', raw: pending.blob, contentType: 'image/jpeg',
     });
-    return data;
+    return { uploaded: true };
   } catch (err) {
-    toast(`Item saved, but the photo wasn't: ${err.message}`, { error: true, duration: 7000 });
-    return null;
+    return { uploaded: false, error: err.message };
   } finally {
     discardPending();
   }
@@ -238,12 +248,14 @@ export function initPhotos(ctx) {
       setStatus('');
       return;
     }
-    const { confirmDialog } = await import('./ui.js');
     if (!(await confirmDialog({ title: 'Delete photo?', text: 'This digital copy will be permanently deleted.', ok: 'Delete', tone: 'danger' }))) return;
     try {
       await api(`/items/${t.dataset.item}/attachments/${t.dataset.id}`, { method: 'DELETE' });
       t.closest('.photo-tile').remove();
       $('#item-photos').hidden = !$('#photo-grid').children.length;
+      photosFull = false;
+      $('#photos-full-note').hidden = true;
+      $('#keep-photo-row').hidden = !features.attachmentsEnabled;
       ctx.onPhotosChanged();
       toast('Photo deleted');
     } catch (err) {

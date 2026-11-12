@@ -5,6 +5,7 @@ A clean, simple app for tracking when things expire: driver's licence, firearm l
 - **Dashboard:** a summary banner, KPI tiles (critical / soon / healthy), filters, search, and one card per item with a countdown.
 - **Light and dark themes:** follows the OS by default; the header toggle cycles System → Light → Dark.
 - **User accounts:** sign up, sign in, password reset by email, change password, delete account.
+- **Delete with Undo:** deleted items (with their photos and renewal history) can be restored from the Undo prompt for 60 minutes, then they're permanently removed.
 - **Renewals:** "Mark as renewed" suggests the next expiry date from the item's validity cycle (you can edit it) and keeps a renewal history.
 - **Renewal lead time per item:** some renewals take months (e.g. firearm licences: apply at least 90 days before). Cards show "Renewal window open" once you're inside that lead time.
 - **Status report:** on-screen table, plain-text copy, print/PDF, CSV export.
@@ -97,7 +98,10 @@ Without SMTP configured, development logs password-reset links and reminder emai
 | `npm run dev` | Start with `--watch` and `.env` |
 | `npm run migrate` | Apply migrations only |
 | `npm run admin:seed -- --email <addr> [--name "Name"] [--reset-password] [--demote]` | Create, promote, re-password or demote a platform admin |
-| `npm test` | Unit + integration tests (uses `.env.test`, needs a test database) |
+| `npm test` | Unit + API integration tests (uses `.env.test`, needs a test database) |
+| `npm run test:coverage` | Same, with a coverage report; fails below 90% lines / 78% branches |
+| `npm run test:e2e` | End-to-end browser tests: real server + Chromium + mock Groq + axe accessibility scans (needs `npx playwright install chromium` once) |
+| `npm run test:all` | Both suites |
 | `npm run seed:demo` | Create or refresh the demo account |
 | `npm run icons` | Rebuild `public/icons.svg` after changing the icon list |
 
@@ -111,6 +115,8 @@ createdb vaultexpiry_test && npm test
 
 They cover expiry maths (month-end clamping, timezones, thresholds), auth (signup, login, lockout, reset, session revocation), CSRF/origin enforcement, per-user isolation, validation, filters, renew/history, import, CSV formula-injection escaping, ICS output, calendar tokens, settings, export/delete, reminder de-duplication, and the admin console: access control, the privacy boundary (no item contents leak), every admin action, audit logging, self-protection, and seeding rules. CI runs them on every push (`.github/workflows/ci.yml`).
 
+**End-to-end suite** (`e2e/`). Starts the real server against the test database, a mock Groq API and headless Chromium. It covers the core journeys (sign-up, add/edit/renew, delete + undo, filters, report, CSV), photo scanning (consent, prefill, decline, missing date, provider failure), photo storage, admin access, **zero axe-core WCAG 2.2 AA violations** on key screens in both themes, no horizontal overflow at 320/375/768 px, and keyboard focus behaviour. Both suites run as separate CI jobs.
+
 ## Railway variables
 
 Set these on the **app service → Variables** tab. In the **Source** column, "Railway" means Railway provides the value, either automatically or through a reference variable; "You" means you set it. Every variable is validated at startup, and the app refuses to boot, with a clear log message, if a required one is missing or malformed.
@@ -121,7 +127,7 @@ Set these on the **app service → Variables** tab. In the **Source** column, "R
 |---|---|---|---|---|
 | `DATABASE_URL` | Railway (reference) | – | `${{Postgres.DATABASE_URL}}` | Paste the reference exactly as shown; Railway resolves it to the private-network URL of your Postgres service. Locally: `postgres://vault:vault@localhost:5432/vaultexpiry` |
 | `SESSION_SECRET` | You | – | `kq3V…` (64 chars) | ≥ 32 random characters. Generate with `node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))"`. Changing it signs everyone out |
-| `NODE_ENV` | You | `development` | `production` | `production` turns on `Secure` cookies and HSTS, and makes `APP_URL` mandatory |
+| `NODE_ENV` | You | `development` locally; **`production` automatically on Railway** | `production` | `production` turns on `Secure` cookies and HSTS, keeps email content out of logs, and makes `APP_URL` mandatory. On Railway it defaults to production even if unset |
 | `APP_URL` | You | `http://localhost:$PORT` (dev only) | `https://vaultexpiry.up.railway.app` | Public URL, **no trailing slash**. Used in emails, calendar-feed links and the CSRF origin check. Required when `NODE_ENV=production`. You can write `https://${{RAILWAY_PUBLIC_DOMAIN}}` |
 
 ### Server & database (optional)
@@ -205,6 +211,7 @@ GROQ_API_KEY=<your Groq key>
 6. Sign in as the admin, then **delete `ADMIN_PASSWORD`** from the variables and change the password in Settings.
 
 **Operational notes**
+- **Maintenance job** (every 10 min, in-process): permanently deletes items soft-deleted more than 60 minutes ago (with their photos and history) and removes stale password-reset tokens.
 - **Sessions** live in Postgres, so restarts and redeploys don't sign anyone out, and multiple replicas work.
 - **Rate limits** are in-memory per instance. With more than one replica, the effective limit is multiplied; use a shared store if that matters.
 - **The reminder job** runs hourly inside the app. A Postgres advisory lock means only one replica sends at a time, and `reminder_log` prevents duplicate emails. Emails go out after 07:00 in each user's timezone.

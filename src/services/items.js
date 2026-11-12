@@ -33,7 +33,7 @@ const SORTS = {
  * Status is computed against `today` (the user's local date) and their thresholds.
  */
 export async function listItems(userId, { q, category, status, sort = 'expiry', page = 1, limit = 100 }, ctx) {
-  const where = ['user_id = $1'];
+  const where = ['user_id = $1', 'deleted_at IS NULL'];
   const values = [userId];
   const add = (sql, v) => {
     values.push(v);
@@ -73,20 +73,20 @@ export async function listItems(userId, { q, category, status, sort = 'expiry', 
 
 /** All items for a user (reports, exports, calendar). Bounded by MAX_ITEMS_PER_USER. */
 export async function allItems(userId) {
-  const { rows } = await query(`SELECT ${COLUMNS} FROM items WHERE user_id = $1 ORDER BY expiry_date, title`, [userId]);
+  const { rows } = await query(`SELECT ${COLUMNS} FROM items WHERE user_id = $1 AND deleted_at IS NULL ORDER BY expiry_date, title`, [userId]);
   return rows.map(toItem);
 }
 
 export const MAX_ITEMS_PER_USER = 1000;
 
 export async function getItem(userId, id) {
-  const { rows } = await query(`SELECT ${COLUMNS} FROM items WHERE id = $1 AND user_id = $2`, [id, userId]);
+  const { rows } = await query(`SELECT ${COLUMNS} FROM items WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL`, [id, userId]);
   if (!rows[0]) throw notFound('Item not found');
   return toItem(rows[0]);
 }
 
 export async function createItem(userId, data) {
-  const { rows: countRows } = await query('SELECT count(*)::int AS n FROM items WHERE user_id = $1', [userId]);
+  const { rows: countRows } = await query('SELECT count(*)::int AS n FROM items WHERE user_id = $1 AND deleted_at IS NULL', [userId]);
   if (countRows[0].n >= MAX_ITEMS_PER_USER) {
     throw new AppError(409, 'LIMIT_REACHED', `You can track up to ${MAX_ITEMS_PER_USER} items`);
   }
@@ -118,23 +118,50 @@ export async function updateItem(userId, id, patch) {
   }
   if (!sets.length) return getItem(userId, id);
   const { rows } = await query(
-    `UPDATE items SET ${sets.join(', ')}, updated_at = now() WHERE id = $1 AND user_id = $2 RETURNING ${COLUMNS}`,
+    `UPDATE items SET ${sets.join(', ')}, updated_at = now() WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL RETURNING ${COLUMNS}`,
     values,
   );
   if (!rows[0]) throw notFound('Item not found');
   return toItem(rows[0]);
 }
 
+/** How long a deleted item (with its photos and history) can be restored. */
+export const UNDO_WINDOW_MINUTES = 60;
+
+/** Soft delete: hidden everywhere immediately, restorable for UNDO_WINDOW_MINUTES, then purged. */
 export async function deleteItem(userId, id) {
-  const { rowCount } = await query('DELETE FROM items WHERE id = $1 AND user_id = $2', [id, userId]);
+  const { rowCount } = await query(
+    'UPDATE items SET deleted_at = now() WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL',
+    [id, userId],
+  );
   if (!rowCount) throw notFound('Item not found');
+}
+
+export async function restoreItem(userId, id) {
+  const { rows } = await query(
+    `UPDATE items SET deleted_at = NULL, updated_at = now()
+     WHERE id = $1 AND user_id = $2 AND deleted_at > now() - make_interval(mins => $3)
+     RETURNING ${COLUMNS}`,
+    [id, userId, UNDO_WINDOW_MINUTES],
+  );
+  if (!rows[0]) throw new AppError(410, 'GONE', 'This item can no longer be restored');
+  return toItem(rows[0]);
+}
+
+/** Permanently remove items soft-deleted longer than the undo window (cascades photos + history). */
+export async function purgeDeletedItems() {
+  const { rowCount } = await query(
+    'DELETE FROM items WHERE deleted_at < now() - make_interval(mins => $1)',
+    [UNDO_WINDOW_MINUTES],
+  );
+  return rowCount;
 }
 
 /** Record a renewal: move the expiry date forward and keep an audit trail. */
 export async function renewItem(userId, id, { newExpiryDate }, today) {
   return withTransaction(async (client) => {
     const { rows } = await client.query(
-      `SELECT ${COLUMNS} FROM items WHERE id = $1 AND user_id = $2 FOR UPDATE`,
+      `SELECT ${COLUMNS} FROM items WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL FOR UPDATE`,
       [id, userId],
     );
     if (!rows[0]) throw notFound('Item not found');
@@ -169,7 +196,7 @@ export async function listRenewals(userId, id) {
 export async function importItems(userId, list) {
   return withTransaction(async (client) => {
     await client.query('SELECT id FROM users WHERE id = $1 FOR UPDATE', [userId]); // serialise per user
-    const { rows } = await client.query('SELECT count(*)::int AS n FROM items WHERE user_id = $1', [userId]);
+    const { rows } = await client.query('SELECT count(*)::int AS n FROM items WHERE user_id = $1 AND deleted_at IS NULL', [userId]);
     if (rows[0].n + list.length > MAX_ITEMS_PER_USER) {
       throw new AppError(409, 'LIMIT_REACHED', `You can track up to ${MAX_ITEMS_PER_USER} items`);
     }
@@ -179,7 +206,7 @@ export async function importItems(userId, list) {
        FROM unnest($2::text[], $3::text[], $4::text[], $5::date[], $6::int[], $7::int[], $8::text[])
             AS u(title, category, ref, expiry_date, cycle_months, lead_days, note)
        WHERE NOT EXISTS (
-         SELECT 1 FROM items i WHERE i.user_id = $1 AND i.title = u.title
+         SELECT 1 FROM items i WHERE i.user_id = $1 AND i.deleted_at IS NULL AND i.title = u.title
            AND i.category = u.category AND i.expiry_date = u.expiry_date)`,
       [
         userId,

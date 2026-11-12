@@ -81,6 +81,14 @@ router.post('/:id/renew', async (req, res, next) => {
   }
 });
 
+router.post('/:id/restore', async (req, res, next) => {
+  try {
+    res.json({ success: true, data: await items.restoreItem(req.user.id, idParam(req)) });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get('/:id/renewals', async (req, res, next) => {
   try {
     res.json({ success: true, data: await items.listRenewals(req.user.id, idParam(req)) });

@@ -39,7 +39,7 @@ function toAdminUser(r) {
 const ADMIN_USER_SELECT = `
   SELECT u.id, u.email, u.display_name, u.role, u.created_at, u.last_login_at, u.disabled_at,
          u.locked_until, u.failed_logins, u.email_reminders, u.timezone,
-         (SELECT count(*)::int FROM items i WHERE i.user_id = u.id) AS item_count,
+         (SELECT count(*)::int FROM items i WHERE i.user_id = u.id AND i.deleted_at IS NULL) AS item_count,
          (SELECT count(*)::int FROM session s WHERE (s.sess->>'userId') = u.id::text AND s.expire > now()) AS session_count
   FROM users u`;
 
@@ -51,7 +51,7 @@ export async function platformStats() {
       (SELECT count(*)::int FROM users WHERE disabled_at IS NOT NULL) AS disabled,
       (SELECT count(*)::int FROM users WHERE created_at > now() - interval '30 days') AS new_30d,
       (SELECT count(*)::int FROM users WHERE last_login_at > now() - interval '30 days') AS active_30d,
-      (SELECT count(*)::int FROM items) AS items,
+      (SELECT count(*)::int FROM items WHERE deleted_at IS NULL) AS items,
       (SELECT count(*)::int FROM reminder_log WHERE sent_at > now() - interval '30 days') AS reminders_30d`);
   const r = rows[0];
   return {
