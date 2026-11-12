@@ -2,7 +2,8 @@ import { query, withTransaction } from '../db/pool.js';
 import { notFound, AppError } from '../lib/errors.js';
 import { suggestRenewalDate } from '../../public/js/shared/expiry.js';
 
-const COLUMNS = `id, title, category, ref, expiry_date, cycle_months, lead_days, note, created_at, updated_at`;
+const COLUMNS = `id, title, category, ref, expiry_date, cycle_months, lead_days, note, created_at, updated_at,
+  (SELECT count(*)::int FROM item_attachments a WHERE a.item_id = items.id) AS attachment_count`;
 
 export function toItem(row) {
   return {
@@ -16,6 +17,7 @@ export function toItem(row) {
     note: row.note,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    attachmentCount: row.attachment_count ?? 0,
   };
 }
 

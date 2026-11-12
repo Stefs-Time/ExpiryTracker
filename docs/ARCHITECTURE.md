@@ -32,6 +32,7 @@ Browser (PWA) ──HTTPS──► Railway edge ──► Express
 | `password_resets` | SHA-256 of reset tokens, expiry, used-at |
 | `reminder_log` | `(item_id, expiry_date, stage)` primary key, so each reminder stage is sent at most once per expiry date. Renewing creates a new expiry date and re-arms the stages |
 | `session` | connect-pg-simple session store |
+| `item_attachments` | Document photos: AES-256-GCM ciphertext + IV + auth tag + metadata (`key_version` for future rotation). The row id is bound as AAD, so ciphertext can't be swapped between rows. Cascades with item and user |
 | `admin_audit` | Append-only log of admin actions. Keeps the target's email, so entries survive account deletion |
 
 CHECK constraints mirror the zod validation (lengths, enum, ranges, `warning_days > critical_days`, lowercase email), so bad data can't get in through any code path. Migrations are plain SQL files applied in order, inside transactions, under an advisory lock.
@@ -56,6 +57,14 @@ CHECK constraints mirror the zod validation (lengths, enum, ranges, `warning_day
 | Limits | 32 KB JSON bodies (1 MB for import), 1000 items per user, 500 per page, 15 s statement timeout, 30 s request timeout |
 | Errors | Clients get stable codes and safe messages; stack traces go only to structured server logs |
 | Config | Validated at startup; the process refuses to start without `DATABASE_URL`, a ≥32-char `SESSION_SECRET`, and `APP_URL` in production |
+
+### Document photos & AI scanning
+
+- **Encryption at rest:** AES-256-GCM via `src/lib/crypto-box.js`. The key (`FILE_ENCRYPTION_KEY`) lives only in the environment, so database dumps and backups don't expose photos. Listing queries never select the ciphertext column.
+- **Metadata stripping, twice:** the browser re-encodes through `<canvas>`, and the server (`src/lib/jpeg.js`) validates JPEG structure and removes APP1 (EXIF/XMP), APP12/13 (IPTC) and COM segments. Only well-formed JPEGs are accepted, which rules out polyglot files and SVG.
+- **Serving:** owner-checked in SQL (`user_id` in every query; others get 404), `Cache-Control: private, no-store`, `nosniff`, CORP same-origin, `Content-Disposition: inline`. The service worker never caches photo URLs. CSP allows `blob:` images only for the local preview before upload.
+- **AI provider boundary:** the scan endpoint stores nothing. The prompt asks for no names, ID numbers or addresses. The model's reply is untrusted input: it's parsed out of `<think>` blocks and code fences, validated with zod, unknown keys are dropped, enums and dates are checked, and long digit runs are masked. It only pre-fills a form the user must confirm, which contains prompt-injection text inside photos. Consent is recorded per user. Scans are rate-limited per user (cost and abuse control). Logs record model, latency, token count and outcome, never the image or the extracted values.
+- **Admins** have no route to photos, and admin stats don't touch them.
 
 ### Platform admin model
 

@@ -324,6 +324,16 @@
             </div>
           </section>
 
+          <section class="panel" id="photo-settings" hidden>
+            <h2>Document photos</h2>
+            <p class="muted">Photos are encrypted before they're stored and only you can open them. Administrators can't see them.</p>
+            <p class="hint" id="photo-usage"></p>
+            <div id="scan-consent-row">
+              <p class="hint" id="scan-consent-status"></p>
+              <div class="panel-actions"><button type="button" class="btn btn-ghost" data-action="withdraw-consent">Withdraw AI reading consent</button></div>
+            </div>
+          </section>
+
           <form class="panel" id="form-password" novalidate>
             <h2>Change password</h2>
             <p class="muted">You'll stay signed in here; other devices are signed out.</p>
@@ -377,6 +387,25 @@
       <div class="dialog-body">
         <div class="form-error" role="alert" hidden></div>
         <input type="hidden" name="id">
+        <div class="scan-box" id="scan-box" hidden>
+          <div class="scan-row">
+            <label class="btn btn-soft"><svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-camera"/></svg><span id="photo-btn-label">Scan or add a photo</span>
+              <input type="file" id="photo-input" accept="image/*" class="sr-only"></label>
+            <span class="hint" id="scan-hint"></span>
+          </div>
+          <div class="scan-status" id="scan-status" role="status" aria-live="polite" hidden></div>
+          <div class="pending-photo" id="pending-photo" hidden>
+            <img id="pending-img" alt="Selected document photo">
+            <div class="pending-controls">
+              <div id="keep-photo-row">
+                <label class="check"><input type="checkbox" id="keep-photo" checked><span>Save this photo as a digital copy <span class="faint">(encrypted, only you can see it)</span></span></label>
+                <label class="pending-side"><span class="label">Side</span>
+                  <select class="select select-compact" id="pending-label"><option value="front">Front</option><option value="back">Back</option><option value="other">Other</option></select></label>
+              </div>
+              <button type="button" class="btn btn-sm btn-ghost" data-action="discard-photo">Remove photo</button>
+            </div>
+          </div>
+        </div>
         <label class="field"><span class="label">Title</span>
           <input class="input" name="title" required maxlength="120" placeholder="e.g. Driver's licence card (Code B)"></label>
         <div class="row">
@@ -398,6 +427,10 @@
           <span class="hint">Some renewals take months (e.g. firearm licences: apply at least 90 days before).</span></label>
         <label class="field"><span class="label">Note <span class="faint">(optional)</span></span>
           <textarea class="input textarea" name="note" rows="2" maxlength="500" placeholder="e.g. Renew via eNaTIS or at the DLTC"></textarea></label>
+        <div class="field" id="item-photos" hidden>
+          <span class="label">Digital copies</span>
+          <ul class="photo-grid" id="photo-grid"></ul>
+        </div>
       </div>
       <div class="dialog-foot">
         <button type="button" class="btn btn-ghost" data-close>Cancel</button>
@@ -445,6 +478,47 @@
         <button value="confirm" class="btn btn-danger" id="confirm-ok">Delete</button>
       </div>
     </form>
+  </dialog>
+
+  <!-- ================= AI SCAN CONSENT ================= -->
+  <dialog id="consent-dialog" aria-labelledby="consent-title">
+    <form method="dialog" class="dialog-shell">
+      <div class="dialog-head">
+        <div class="dialog-title">
+          <span class="title-icon sky"><svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-sparkles"/></svg></span>
+          <h2 id="consent-title">Read this document with AI?</h2>
+        </div>
+      </div>
+      <div class="dialog-body consent-body">
+        <p>To fill in the form for you, your photo is sent to <strong>Groq</strong>, an AI provider in the <strong>United States</strong>, which reads the text on it.</p>
+        <ul>
+          <li>It's used only to read this document. VaultExpiry doesn't keep the photo unless you choose to save it as a digital copy.</li>
+          <li>Groq doesn't keep request data by default, but may hold it temporarily (up to 30 days) to prevent abuse.</li>
+          <li>We ask the AI not to return names or ID numbers, and we mask long numbers before showing you the result.</li>
+          <li>You always check and confirm the details before anything is saved.</li>
+        </ul>
+        <p class="hint">You can withdraw this consent at any time in Settings. You can also skip this and type the details yourself.</p>
+      </div>
+      <div class="dialog-foot">
+        <button value="decline" class="btn btn-ghost">Not now</button>
+        <button value="agree" class="btn btn-primary">Agree and read photo</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- ================= PHOTO VIEWER ================= -->
+  <dialog id="photo-dialog" class="wide" aria-labelledby="photo-dialog-title">
+    <div class="dialog-shell">
+      <div class="dialog-head">
+        <div class="dialog-title">
+          <span class="title-icon"><svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-image"/></svg></span>
+          <div><h2 id="photo-dialog-title">Digital copies</h2><p>Encrypted · only you can see these</p></div>
+        </div>
+        <button type="button" class="icon-btn" data-close aria-label="Close"><svg class="icon" aria-hidden="true"><use href="/icons.svg#i-x"/></svg></button>
+      </div>
+      <div class="dialog-body" id="photo-viewer"></div>
+      <div class="dialog-foot"><button type="button" class="btn" data-close>Done</button></div>
+    </div>
   </dialog>
 
   <!-- ================= ADMIN: RESET LINK ================= -->

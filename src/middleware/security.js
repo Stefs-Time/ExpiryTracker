@@ -8,7 +8,8 @@ const UNSAFE = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 /**
  * CSRF defence for the JSON API (layered):
  * 1. Session cookie is SameSite=Lax + HttpOnly.
- * 2. Unsafe requests must be JSON (HTML forms cannot send application/json cross-site without CORS).
+ * 2. Unsafe requests must be JSON, or a raw JPEG for photo uploads. Neither type can be sent
+ *    cross-site by an HTML form or without a CORS preflight (which this API never grants).
  * 3. Origin / Sec-Fetch-Site must indicate a same-origin request.
  * 4. Authenticated unsafe requests must carry the per-session X-CSRF-Token (synchronizer token).
  */
@@ -16,8 +17,8 @@ export function csrfProtection(req, res, next) {
   if (!UNSAFE.has(req.method)) return next();
 
   const contentLength = Number(req.headers['content-length'] || 0);
-  if (contentLength > 0 && !req.is('application/json')) {
-    return next(new AppError(415, 'UNSUPPORTED_MEDIA_TYPE', 'Content-Type must be application/json'));
+  if (contentLength > 0 && !req.is('application/json') && !req.is('image/jpeg')) {
+    return next(new AppError(415, 'UNSUPPORTED_MEDIA_TYPE', 'Content-Type must be application/json (or image/jpeg for photos)'));
   }
 
   const site = req.headers['sec-fetch-site'];

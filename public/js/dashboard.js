@@ -1,5 +1,6 @@
 /** Dashboard: banner, KPIs, filters, cards, item/renew/confirm dialogs and the status report. */
 import { api } from './api.js';
+import { initPhotos, resetPhotoUI, loadItemPhotos, uploadPendingFor, openPhotoViewer } from './photos.js';
 import { $, $$, esc, icon, toast, showFormError, busy, formData, copyText, confirmDialog } from './ui.js';
 import {
   CATEGORIES, CATEGORY_KEYS, summarise, formatDate, formatCycle, suggestRenewalDate, addMonths, isISODate,
@@ -184,6 +185,7 @@ function cardHTML(i) {
       <div class="card-meta">
         ${i.ref ? `<span class="ref">${esc(i.ref)}</span>` : ''}
         <span class="cycle">${esc(formatCycle(i.cycleMonths))} CYCLE</span>
+        ${i.attachmentCount ? `<button type="button" class="photo-chip" data-action="photos" data-id="${id}" aria-label="View ${i.attachmentCount} photo${i.attachmentCount === 1 ? '' : 's'} of ${esc(i.title)}">${icon('image', 'icon icon-sm')}${i.attachmentCount}</button>` : ''}
       </div>
       ${i.note ? `<p class="card-note">${esc(i.note)}</p>` : ''}
       ${i.renewalWindowOpen && i.status !== 'critical' ? `<span class="window-flag">${icon('clock', 'icon icon-sm')}Renewal window open — start now</span>` : ''}
@@ -236,8 +238,11 @@ export function openItemDialog(item = null, template = null) {
   form.elements.leadDays.value = String(src.leadDays ?? cat.defaultLead);
   form.elements.note.value = src.note || '';
   form.dataset.touchedCycle = editing ? '1' : '';
+  $$('.ai-filled', form).forEach((el) => el.classList.remove('ai-filled'));
+  resetPhotoUI({ editing });
   dlg.showModal();
   form.elements.title.focus();
+  if (editing) loadItemPhotos(item);
 }
 
 async function submitItem(e) {
@@ -260,16 +265,20 @@ async function submitItem(e) {
   }
   await busy(form, async () => {
     try {
+      let saved;
       if (f.id) {
         rememberFocus(f.id, 'edit');
         const { data } = await api(`/items/${f.id}`, { method: 'PATCH', body });
+        saved = data;
         state.items = state.items.map((i) => (i.id === data.id ? data : i));
-        toast(`Updated "${data.title}"`);
       } else {
         const { data } = await api('/items', { method: 'POST', body });
+        saved = data;
         state.items.push(data);
-        toast(`Now tracking "${data.title}"`);
       }
+      // Upload the kept photo before closing (closing the dialog discards it).
+      const photo = await uploadPendingFor(saved.id);
+      toast(`${f.id ? 'Updated' : 'Now tracking'} "${saved.title}"${photo ? ' with its photo' : ''}`);
       $('#item-dialog').close();
       render();
       loadItems(); // re-sync (also refreshes the offline copy)
@@ -390,6 +399,7 @@ const byId = (id) => state.items.find((i) => i.id === id);
 
 export function initDashboard() {
   fillCategorySelects();
+  initPhotos({ getUser: () => state.user, onPhotosChanged: () => loadItems() });
 
   document.addEventListener('click', async (e) => {
     const t = e.target.closest('[data-action],[data-filter],[data-template],[data-close]');
@@ -407,6 +417,7 @@ export function initDashboard() {
       case 'renew': return item && openRenewDialog(item);
       case 'delete': return item && deleteItem(item);
       case 'open-report': return openReport();
+      case 'photos': return item && openPhotoViewer(item);
       case 'copy-report':
         return toast((await copyText($('#report-plaintext').value)) ? 'Report copied to clipboard' : 'Copy failed', {});
       case 'print-report': return window.print();

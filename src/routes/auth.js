@@ -31,7 +31,10 @@ const signupLimiter = limiter(5, 60);
 const resetLimiter = limiter(5, 60);
 
 router.get('/config', (req, res) => {
-  res.json({ success: true, data: { signupEnabled: config.signupEnabled } });
+  res.json({
+    success: true,
+    data: { signupEnabled: config.signupEnabled, scanEnabled: config.scanEnabled, attachmentsEnabled: config.attachmentsEnabled },
+  });
 });
 
 router.post('/signup', signupLimiter, async (req, res, next) => {

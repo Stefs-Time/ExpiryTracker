@@ -18,7 +18,7 @@ async function getDummyHash() {
 export const hashPassword = (pw) => argon2.hash(pw, HASH_OPTS);
 
 const USER_COLUMNS = `id, email, display_name, timezone, critical_days, warning_days, email_reminders,
-  (calendar_token_hash IS NOT NULL) AS has_calendar_feed, role, disabled_at, password_changed_at, created_at`;
+  (calendar_token_hash IS NOT NULL) AS has_calendar_feed, role, disabled_at, ai_scan_consent_at, password_changed_at, created_at`;
 
 export function toPublicUser(row) {
   return {
@@ -31,6 +31,7 @@ export function toPublicUser(row) {
     emailReminders: row.email_reminders,
     hasCalendarFeed: row.has_calendar_feed,
     isAdmin: row.role === 'admin',
+    aiScanConsent: Boolean(row.ai_scan_consent_at),
     createdAt: row.created_at,
   };
 }
@@ -198,4 +199,13 @@ export async function findByCalendarToken(token) {
     [hashToken(token)],
   );
   return rows[0] || null;
+}
+
+/** Record (or withdraw) consent to send photos to the AI provider for reading. */
+export async function setScanConsent(userId, consent) {
+  await query(
+    `UPDATE users SET ai_scan_consent_at = ${'CASE WHEN $2 THEN now() ELSE NULL END'}, updated_at = now() WHERE id = $1`,
+    [userId, consent],
+  );
+  return findById(userId);
 }

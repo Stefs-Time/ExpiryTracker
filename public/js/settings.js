@@ -32,6 +32,21 @@ export async function showSettings() {
   form.elements.emailReminders.checked = account.emailReminders;
   $('#mail-hint').hidden = account.mailConfigured;
   renderFeedState(account.hasCalendarFeed);
+  renderPhotoSettings(account);
+}
+
+function renderPhotoSettings(account) {
+  const panel = $('#photo-settings');
+  panel.hidden = !(account.scanEnabled || account.attachmentsEnabled);
+  const mb = (b) => (b / 1024 / 1024).toFixed(b < 10 * 1024 * 1024 ? 1 : 0);
+  $('#photo-usage').textContent = account.attachmentsEnabled
+    ? `${account.photoStorage.photos} photo${account.photoStorage.photos === 1 ? '' : 's'} stored · ${mb(account.photoStorage.bytes)} MB of ${mb(account.photoStorage.limitBytes)} MB used`
+    : '';
+  $('#scan-consent-row').hidden = !account.scanEnabled;
+  $('#scan-consent-status').textContent = account.aiScanConsent
+    ? 'You have agreed to send photos to Groq (AI provider, USA) to read document details.'
+    : "You haven't agreed to AI photo reading. You'll be asked the first time you scan.";
+  $('[data-action="withdraw-consent"]').hidden = !account.aiScanConsent;
 }
 
 function renderFeedState(active, url) {
@@ -143,6 +158,16 @@ export function initSettings(context) {
         ctx.setUser({ ...ctx.getUser(), hasCalendarFeed: false });
         renderFeedState(false);
         toast('Calendar link turned off');
+      } catch (err) {
+        toast(err.message, { error: true });
+      }
+    }
+    if (t.dataset.action === 'withdraw-consent') {
+      try {
+        const { data } = await api('/account/scan-consent', { method: 'PUT', body: { consent: false } });
+        ctx.setUser({ ...ctx.getUser(), aiScanConsent: data.aiScanConsent });
+        await showSettings();
+        toast('Consent withdrawn. Photos will no longer be sent for reading.');
       } catch (err) {
         toast(err.message, { error: true });
       }

@@ -89,6 +89,21 @@ Rate limits per IP: login 10 per 15 min, signup 5 per hour, forgot/reset 5 per h
 | GET | `/:id/renewals` | Last 50 renewals `{ previousExpiry, newExpiry, renewedAt }` |
 | POST | `/import` | `{ items: [ … ≤ 500 ] }` → `{ imported, skipped }`. Skips items whose title, category and expiry date match an existing one. Accepts the `items` array from `/account/export` |
 
+## Photos & AI scan (auth)
+
+Photo uploads send the **raw JPEG bytes** as the request body with `Content-Type: image/jpeg`. The same-origin and `X-CSRF-Token` rules still apply. Non-JPEG or malformed files get 422 `INVALID_IMAGE`; other content types get 415. EXIF/XMP/IPTC metadata is stripped on the server.
+
+| Method | Path | Body | Result |
+|---|---|---|---|
+| PUT | `/api/account/scan-consent` | `{ consent: true \| false }` | Updated user (`aiScanConsent`) |
+| POST | `/api/scan` | JPEG (≤ 4 MB) | `{ suggestion: { title, category, ref, expiryDate \| null, cycleMonths, leadDays }, confidence (0–1), notes, found: { expiryDate, issueDate, reference } }`. **Not stored.** 403 `CONSENT_REQUIRED` without consent; 503 `FEATURE_DISABLED` without `GROQ_API_KEY`; 422 `SCAN_UNREADABLE`; 429 `SCAN_BUSY` / `RATE_LIMITED` (30 per user per hour); 502/504 `SCAN_UNAVAILABLE` |
+| GET | `/api/items/:id/attachments` | – | `[{ id, itemId, label, contentType, byteSize, width, height, createdAt, url }]` |
+| POST | `/api/items/:id/attachments?label=front\|back\|other` | JPEG (≤ 4 MB) | 201 with metadata. 409 `LIMIT_REACHED` (4 per item, 100 MB per user) |
+| GET | `/api/items/:id/attachments/:aid` | – | The decrypted `image/jpeg`, with `Cache-Control: private, no-store` |
+| DELETE | `/api/items/:id/attachments/:aid` | – | 204 |
+
+Every attachment route returns 404 for items or photos that aren't yours, and 503 `FEATURE_DISABLED` without `FILE_ENCRYPTION_KEY`. Item objects include `attachmentCount`. `/api/auth/config` and `/api/account` report `scanEnabled` / `attachmentsEnabled`. `/api/account` also reports `aiScanConsent` and `photoStorage: { photos, bytes, limitBytes }`. `/api/account/export` lists photo metadata and URLs, not the image bytes.
+
 ## Reports — `/api/reports` (auth)
 
 | Method | Path | Result |

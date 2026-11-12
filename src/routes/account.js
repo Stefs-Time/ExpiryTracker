@@ -7,11 +7,39 @@ import * as users from '../services/users.js';
 import * as items from '../services/items.js';
 import { logIn, destroySession } from '../middleware/auth.js';
 import { mailEnabled } from '../services/mailer.js';
+import { storageUsage } from '../services/attachments.js';
+import { z } from 'zod';
+import { query } from '../db/pool.js';
 
 const router = Router();
 
-router.get('/', (req, res) => {
-  res.json({ success: true, data: { ...users.toPublicUser(req.user), mailConfigured: mailEnabled() || config.isTest } });
+router.get('/', async (req, res, next) => {
+  try {
+    res.json({
+      success: true,
+      data: {
+        ...users.toPublicUser(req.user),
+        mailConfigured: mailEnabled() || config.isTest,
+        scanEnabled: config.scanEnabled,
+        attachmentsEnabled: config.attachmentsEnabled,
+        photoStorage: await storageUsage(req.user.id),
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+const consentSchema = z.object({ consent: z.boolean() }).strict();
+
+router.put('/scan-consent', async (req, res, next) => {
+  try {
+    const { consent } = parse(consentSchema, req.body);
+    const user = await users.setScanConsent(req.user.id, consent);
+    res.json({ success: true, data: users.toPublicUser(user) });
+  } catch (err) {
+    next(err);
+  }
 });
 
 router.patch('/', async (req, res, next) => {
@@ -68,10 +96,19 @@ router.delete('/calendar-token', async (req, res, next) => {
 router.get('/export', async (req, res, next) => {
   try {
     const all = await items.allItems(req.user.id);
+    const { rows: photos } = await query(
+      `SELECT id, item_id, label, byte_size, created_at FROM item_attachments WHERE user_id = $1 ORDER BY created_at`,
+      [req.user.id],
+    );
     const payload = {
       exportedAt: new Date().toISOString(),
       account: users.toPublicUser(req.user),
       items: all,
+      // Photos are listed, not embedded: download each one from its URL while signed in.
+      photos: photos.map((p) => ({
+        id: p.id, itemId: p.item_id, label: p.label, byteSize: p.byte_size, createdAt: p.created_at,
+        url: `/api/items/${p.item_id}/attachments/${p.id}`,
+      })),
     };
     res.attachment('vaultexpiry-export.json').json(payload);
   } catch (err) {

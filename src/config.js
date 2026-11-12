@@ -30,6 +30,16 @@ const schema = z.object({
   ADMIN_EMAIL: z.string().trim().toLowerCase().email('ADMIN_EMAIL must be an email address').optional().or(z.literal('')),
   ADMIN_PASSWORD: z.string().min(5, 'ADMIN_PASSWORD must be more than 4 characters').max(128).optional().or(z.literal('')),
   ADMIN_NAME: z.string().trim().min(1).max(80).optional().default('Platform Admin'),
+  GROQ_API_KEY: z.string().trim().optional().default(''),
+  GROQ_MODEL: z.string().trim().min(1).optional().default('qwen/qwen3.8-27b'),
+  GROQ_BASE_URL: z.string().url().optional().default('https://api.groq.com/openai/v1'),
+  GROQ_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120_000).default(30_000),
+  FILE_ENCRYPTION_KEY: z
+    .string()
+    .trim()
+    .optional()
+    .default('')
+    .refine((v) => v === '' || Buffer.from(v, 'base64').length === 32, 'FILE_ENCRYPTION_KEY must be 32 bytes, base64-encoded'),
 });
 
 const parsed = schema.safeParse(process.env);
@@ -70,6 +80,15 @@ export const config = Object.freeze({
   },
   remindersEnabled: env.REMINDERS_ENABLED,
   signupEnabled: env.SIGNUP_ENABLED,
+  groq: {
+    apiKey: env.GROQ_API_KEY,
+    model: env.GROQ_MODEL,
+    baseUrl: env.GROQ_BASE_URL.replace(/\/+$/, ''),
+    timeoutMs: env.GROQ_TIMEOUT_MS,
+  },
+  scanEnabled: Boolean(env.GROQ_API_KEY),
+  fileEncryptionKey: env.FILE_ENCRYPTION_KEY ? Buffer.from(env.FILE_ENCRYPTION_KEY, 'base64') : null,
+  attachmentsEnabled: Boolean(env.FILE_ENCRYPTION_KEY),
   bootstrapAdmin: {
     email: env.ADMIN_EMAIL || '',
     password: env.ADMIN_PASSWORD || '',

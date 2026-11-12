@@ -1,5 +1,5 @@
 /** App bootstrap: session, hash router, auth forms, theme, PWA service worker. */
-import { api, setCsrfToken } from './api.js';
+import { api, setCsrfToken, features } from './api.js';
 import { $, $$, toast, showFormError, busy, formData, wireStrengthMeter, initToast } from './ui.js';
 import { initDashboard, loadItems, render, setUser as setDashUser, resetDashboard } from './dashboard.js';
 import { initSettings, showSettings } from './settings.js';
@@ -315,7 +315,11 @@ async function boot() {
   });
   window.addEventListener('hashchange', route);
 
-  api('/auth/config').then(({ data }) => { signupEnabled = data.signupEnabled; }).catch(() => {});
+  try {
+    const { data } = await api('/auth/config');
+    Object.assign(features, data);
+    signupEnabled = data.signupEnabled;
+  } catch { /* offline: keep defaults */ }
 
   try {
     const { data } = await api('/auth/me');

@@ -16,6 +16,7 @@ import itemRoutes from './routes/items.js';
 import accountRoutes from './routes/account.js';
 import reportRoutes from './routes/reports.js';
 import adminRoutes from './routes/admin.js';
+import { scanRouter, attachmentRouter } from './routes/media.js';
 import { findByCalendarToken } from './services/users.js';
 import { allItems } from './services/items.js';
 import { buildCalendar } from './services/calendar.js';
@@ -36,7 +37,7 @@ export function createApp() {
           'default-src': ["'self'"],
           'script-src': ["'self'"],
           'style-src': ["'self'"],
-          'img-src': ["'self'", 'data:'],
+          'img-src': ["'self'", 'data:', 'blob:'],
           'font-src': ["'self'"],
           'connect-src': ["'self'"],
           'manifest-src': ["'self'"],
@@ -126,6 +127,8 @@ export function createApp() {
   api.use(csrfProtection);
 
   api.use('/auth', authRoutes);
+  api.use('/scan', requireUser, scanRouter);
+  api.use('/items/:id/attachments', requireUser, attachmentRouter);
   api.use('/items', requireUser, itemRoutes);
   api.use('/account', requireUser, accountRoutes);
   api.use('/reports', requireUser, reportRoutes);

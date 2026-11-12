@@ -11,6 +11,8 @@ A clean, simple app for tracking when things expire: driver's licence, firearm l
 - **Reminders:** an email digest when items enter their lead-time, "expiring soon", critical or final-week windows, and once after expiry. Each stage is sent once per expiry date.
 - **Calendar sync:** a private subscription link (Google, Apple, Outlook) or a one-off `.ics` download. Events include native alarms at the lead time, 7 days before, and on the day.
 - **Platform admin console:** see every account, send password resets, unlock, sign out everywhere, disable/enable, delete. Admins **cannot** see anyone's tracked items. Every action is audit-logged. See [Platform admin](#platform-admin).
+- **Scan a photo (AI):** photograph a licence, disc or card and the form fills itself in (title, type, masked reference, expiry date, validity cycle) using a Groq vision model. You review every field before saving. Asks for consent first.
+- **Digital copies:** keep photos of the front and back of each document, **encrypted at rest**, visible only to you (not even to admins).
 - **PWA:** installable, works offline as a read-only copy of your last synced data, and prompts when an update is available.
 - **Data portability:** JSON export/import and CSV export.
 
@@ -151,6 +153,18 @@ Without SMTP the app still works: reminder emails aren't sent, a user's "Forgot 
 | `REMINDERS_ENABLED` | You | `true` | `false` | Turns off the hourly reminder job on this instance. In production it also stays off when SMTP isn't configured |
 | `SIGNUP_ENABLED` | You | `true` | `false` | `false` closes public registration; existing users can still sign in |
 
+### Document photos & AI scanning (optional)
+
+| Variable | Source | Default | Example | Notes |
+|---|---|---|---|---|
+| `FILE_ENCRYPTION_KEY` | You | *(empty: photo storage off)* | `q3Jx…=` (44 chars) | 32 random bytes, base64. Generate with `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`. Encrypts every stored photo (AES-256-GCM). **If this key is lost or changed, all stored photos become unreadable.** Keep a copy in your password manager, separate from database backups |
+| `GROQ_API_KEY` | You | *(empty: scanning off)* | `gsk_…` | From [console.groq.com/keys](https://console.groq.com/keys). Enables "Scan or add a photo" |
+| `GROQ_MODEL` | You | `qwen/qwen3.8-27b` | `qwen/qwen3.8-27b` | Must be a Groq **vision** model. Groq marks its vision models as preview, and they can be retired at short notice: check [console.groq.com/docs/vision](https://console.groq.com/docs/vision) and update this without redeploying code |
+| `GROQ_BASE_URL` | You | `https://api.groq.com/openai/v1` | – | Only change for testing |
+| `GROQ_TIMEOUT_MS` | You | `30000` | `20000` | How long to wait for a reading before giving up |
+
+The two features are independent. With only `FILE_ENCRYPTION_KEY`, users can attach photos but there's no AI reading. With only `GROQ_API_KEY`, photos are read and then discarded.
+
 ### Platform admin bootstrap (optional)
 
 | Variable | Source | Default | Example | Notes |
@@ -177,6 +191,8 @@ MAIL_FROM=VaultExpiry <no-reply@yourdomain.co.za>
 ADMIN_EMAIL=you@yourdomain.co.za
 ADMIN_PASSWORD=<strong temporary passphrase — delete after first deploy>
 ADMIN_NAME=Your Name
+FILE_ENCRYPTION_KEY=<paste output of the 32-byte key command>
+GROQ_API_KEY=<your Groq key>
 ```
 
 ## Deploying to Railway
@@ -229,6 +245,24 @@ On Railway, run these with the [Railway CLI](https://docs.railway.com/guides/cli
 
 Note that `railway run` executes on your machine with the service's variables, so it needs a database URL reachable from outside Railway (the Postgres service's public URL, with `DATABASE_SSL=true`). If you'd rather not expose the database, use the bootstrap variables.
 
+## Document photos & AI scanning
+
+**How scanning works.**
+1. The user picks or takes a photo.
+2. The browser decodes it, fixes its rotation, scales it to at most 2000 px, and re-encodes it as JPEG. This drops EXIF metadata such as GPS location.
+3. The server checks it's a real JPEG and strips any remaining metadata segments.
+4. The server sends it to Groq in JSON mode.
+5. The reply is treated as untrusted: it's parsed, every field is validated, and unknown fields are dropped. Dates are normalised (DD/MM/YYYY, bank-card MM/YY → month end) and implausible dates are discarded. Any long number is masked to its last 4 digits.
+6. The result **pre-fills** the form, with filled fields highlighted. Nothing is saved until the user presses Save.
+
+**Consent (POPIA).** Before a user's first scan they see who receives the photo (Groq, USA), what happens to it, and that they can type the details instead. Consent is recorded per user (`users.ai_scan_consent_at`) and can be withdrawn in Settings. **Operator to-do:** in the Groq console, turn on **Zero Data Retention** (Data Controls). Groq otherwise may keep request data for up to 30 days for abuse monitoring. If you enable it, update the consent text in `public/index.html`. Review the cross-border transfer against your own POPIA obligations.
+
+**Digital copies.** Photos are stored in PostgreSQL as AES-256-GCM ciphertext (the key is never in the database). They're served only to their owner with `Cache-Control: no-store`, are never cached by the service worker, and are deleted with their item or account.
+
+**Limits.** Up to 4 photos per item, 4 MB each after compression (typically 0.3–1.5 MB), 100 MB per user, and 30 scans per user per hour.
+
+**Storage and backups.** Photos make the database (and its backups) larger. That's fine at personal scale. If you grow past several GB, move photo bytes to S3-compatible object storage (keeping the same encryption) behind `src/services/attachments.js`.
+
 ## PWA notes
 
 - Installable on Android/desktop (Chrome/Edge) and iOS ("Add to Home Screen"). Needs HTTPS in production; `localhost` is exempt.
@@ -242,5 +276,8 @@ Note that `railway run` executes on your machine with the service's variables, s
 - No web push notifications (email and calendar alarms cover reminders). Adding push needs VAPID keys and the `web-push` package.
 - Offline mode is read-only; there is no offline edit queue.
 - Status thresholds are per user, not per category.
+- Scanning uses one photo at a time (front). A second photo for the back can be attached but isn't read by the AI.
+- `FILE_ENCRYPTION_KEY` can't be rotated yet. Rotation would need a re-encryption script; the `key_version` column is already there for it.
+- HEIC photos only open in browsers that can decode them (Safari). Other browsers ask for JPEG/PNG.
 
 See [`docs/API.md`](docs/API.md) for the REST API and [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for design and security notes.
