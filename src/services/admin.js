@@ -234,7 +234,3 @@ export async function demoteAdmin(email) {
   });
 }
 
-export async function adminCount() {
-  const { rows } = await query(`SELECT count(*)::int AS n FROM users WHERE role = 'admin'`);
-  return rows[0].n;
-}

@@ -48,7 +48,6 @@ const schema = z.object({
 const parsed = schema.safeParse(process.env);
 if (!parsed.success) {
   const issues = parsed.error.issues.map((i) => `  - ${i.path.join('.')}: ${i.message}`).join('\n');
-  // eslint-disable-next-line no-console
   console.error(`Invalid configuration:\n${issues}`);
   process.exit(1);
 }

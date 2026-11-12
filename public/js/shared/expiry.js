@@ -141,6 +141,21 @@ export function summarise(items, todayISO, thresholds) {
   return { items: evaluated, counts };
 }
 
+/**
+ * Plain-text status report (used by the "Copy summary" button and GET /api/reports/status.txt).
+ * @param {ReturnType<typeof summarise>} summary
+ */
+export function plainTextReport({ items, counts }, todayISO) {
+  const flag = (i) => (i.expired ? '[EXPIRED] ' : i.status === 'critical' ? '[CRITICAL]' : i.status === 'soon' ? '[SOON]    ' : '[VALID]   ');
+  return [
+    'VAULTEXPIRY STATUS REPORT',
+    `Report date: ${formatDate(todayISO)} | Total tracked: ${counts.total}`,
+    `Summary: ${counts.critical} critical (${counts.expired} expired) | ${counts.soon} expiring soon | ${counts.valid} valid`,
+    '-'.repeat(60),
+    ...items.map((i) => `${flag(i)} ${i.title}${i.ref ? ` (${i.ref})` : ''} -> ${formatDate(i.expiryDate)} (${i.label})`),
+  ].join('\n');
+}
+
 /** Human-readable date, e.g. '04 Dec 2026'. */
 export function formatDate(iso) {
   const [y, m, d] = iso.split('-').map(Number);

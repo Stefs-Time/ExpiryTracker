@@ -7,20 +7,16 @@
  *   DELETE /api/items/:id/attachments/:aid
  * Request bodies are raw JPEG bytes (no multipart parser needed).
  */
-import { Router } from 'express';
-import express from 'express';
+import express, { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import { z } from 'zod';
 import { config } from '../config.js';
 import { parse } from '../lib/validate.js';
-import { uuid } from '../lib/schemas.js';
+import { uuid, photoLabelSchema } from '../lib/schemas.js';
 import { AppError } from '../lib/errors.js';
 import * as attachments from '../services/attachments.js';
 import { scanDocument } from '../services/scan.js';
 
 const rawJpeg = express.raw({ type: 'image/jpeg', limit: '5mb' });
-const wrap = (fn) => (req, res, next) => fn(req, res).catch(next);
-const labelSchema = z.object({ label: z.enum(['front', 'back', 'other']).optional().default('front') });
 
 // ---- Scan ----
 export const scanRouter = Router();
@@ -39,7 +35,7 @@ const scanLimiter = rateLimit({
   }),
 });
 
-scanRouter.post('/', scanLimiter, rawJpeg, wrap(async (req, res) => {
+scanRouter.post('/', scanLimiter, rawJpeg, async (req, res) => {
   if (!config.scanEnabled) throw new AppError(503, 'FEATURE_DISABLED', 'Photo scanning is not enabled on this server');
   if (!req.user.ai_scan_consent_at) {
     throw new AppError(403, 'CONSENT_REQUIRED', 'Please agree to photo scanning before using it');
@@ -47,7 +43,7 @@ scanRouter.post('/', scanLimiter, rawJpeg, wrap(async (req, res) => {
   const img = attachments.prepareImage(req.body);
   const result = await scanDocument(img.buffer, req.user);
   res.json({ success: true, data: result });
-}));
+});
 
 // ---- Attachments (mounted under /api/items/:id/attachments) ----
 export const attachmentRouter = Router({ mergeParams: true });
@@ -60,17 +56,17 @@ attachmentRouter.use((req, res, next) => {
 const itemId = (req) => parse(uuid, req.params.id);
 const attId = (req) => parse(uuid, req.params.aid);
 
-attachmentRouter.get('/', wrap(async (req, res) => {
+attachmentRouter.get('/', async (req, res) => {
   res.json({ success: true, data: await attachments.listAttachments(req.user.id, itemId(req)) });
-}));
+});
 
-attachmentRouter.post('/', rawJpeg, wrap(async (req, res) => {
-  const { label } = parse(labelSchema, req.query);
+attachmentRouter.post('/', rawJpeg, async (req, res) => {
+  const { label } = parse(photoLabelSchema, req.query);
   const meta = await attachments.addAttachment(req.user.id, itemId(req), { label, body: req.body });
   res.status(201).location(meta.url).json({ success: true, data: meta });
-}));
+});
 
-attachmentRouter.get('/:aid', wrap(async (req, res) => {
+attachmentRouter.get('/:aid', async (req, res) => {
   const file = await attachments.readAttachment(req.user.id, itemId(req), attId(req));
   res.set({
     'Content-Type': file.contentType,
@@ -80,9 +76,9 @@ attachmentRouter.get('/:aid', wrap(async (req, res) => {
     ETag: file.etag,
   });
   res.send(file.body);
-}));
+});
 
-attachmentRouter.delete('/:aid', wrap(async (req, res) => {
+attachmentRouter.delete('/:aid', async (req, res) => {
   await attachments.deleteAttachment(req.user.id, itemId(req), attId(req));
   res.status(204).end();
-}));
+});

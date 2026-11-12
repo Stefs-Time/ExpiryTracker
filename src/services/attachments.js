@@ -112,6 +112,17 @@ export async function deleteAttachment(userId, itemId, attachmentId) {
   if (!rowCount) throw notFound('Photo not found');
 }
 
+/** Metadata (no bytes) of every photo on the user's live items — for data export. */
+export async function listUserPhotos(userId) {
+  const { rows } = await query(
+    `SELECT a.${META.split(', ').join(', a.')} FROM item_attachments a
+     JOIN items i ON i.id = a.item_id AND i.deleted_at IS NULL
+     WHERE a.user_id = $1 ORDER BY a.created_at`,
+    [userId],
+  );
+  return rows.map(toMeta);
+}
+
 export async function storageUsage(userId) {
   const { rows } = await query(
     'SELECT count(*)::int AS photos, coalesce(sum(byte_size), 0)::bigint AS bytes FROM item_attachments WHERE user_id = $1',

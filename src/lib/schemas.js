@@ -98,3 +98,25 @@ export const listQuerySchema = z.object({
 });
 
 export const uuid = z.uuid({ message: 'Invalid id' });
+
+export const consentSchema = z.object({ consent: z.boolean() }).strict();
+
+export const photoLabelSchema = z.object({ label: z.enum(['front', 'back', 'other']).optional().default('front') });
+
+// ---- Admin ----
+const pagination = {
+  page: z.coerce.number().int().min(1).max(10_000).optional().default(1),
+  limit: z.coerce.number().int().min(1).max(200).optional().default(50),
+};
+
+export const adminUserListSchema = z.object({
+  q: z.string().trim().max(100).optional(),
+  status: z.enum(['active', 'locked', 'disabled']).optional(),
+  role: z.enum(['user', 'admin']).optional(),
+  sort: z.enum(['created', '-created', 'email', 'lastLogin']).optional().default('created'),
+  ...pagination,
+});
+
+export const adminAuditSchema = z.object({ ...pagination, userId: uuid.optional() });
+
+export const adminDeleteSchema = z.object({ confirmEmail: z.string().trim().toLowerCase().max(254) }).strict();

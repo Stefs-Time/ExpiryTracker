@@ -1,9 +1,8 @@
 import { Router } from 'express';
-import { z } from 'zod';
 import rateLimit from 'express-rate-limit';
 import { config } from '../config.js';
 import { parse } from '../lib/validate.js';
-import { uuid } from '../lib/schemas.js';
+import { uuid, adminUserListSchema, adminAuditSchema, adminDeleteSchema } from '../lib/schemas.js';
 import * as admin from '../services/admin.js';
 import { sendMail, escapeHtml, mailEnabled } from '../services/mailer.js';
 
@@ -20,50 +19,28 @@ router.use(
   }),
 );
 
-const listSchema = z.object({
-  q: z.string().trim().max(100).optional(),
-  status: z.enum(['active', 'locked', 'disabled']).optional(),
-  role: z.enum(['user', 'admin']).optional(),
-  sort: z.enum(['created', '-created', 'email', 'lastLogin']).optional().default('created'),
-  page: z.coerce.number().int().min(1).max(10_000).optional().default(1),
-  limit: z.coerce.number().int().min(1).max(200).optional().default(50),
-});
-const auditSchema = z.object({
-  page: z.coerce.number().int().min(1).max(10_000).optional().default(1),
-  limit: z.coerce.number().int().min(1).max(200).optional().default(50),
-  userId: uuid.optional(),
-});
-const deleteSchema = z.object({ confirmEmail: z.string().trim().toLowerCase().max(254) }).strict();
-
-const wrap = (fn) => async (req, res, next) => {
-  try {
-    await fn(req, res);
-  } catch (err) {
-    next(err);
-  }
-};
 const id = (req) => parse(uuid, req.params.id);
 const done = async (res, userId) => res.json({ success: true, data: await admin.getUser(userId) });
 
-router.get('/stats', wrap(async (req, res) => {
+router.get('/stats', async (req, res) => {
   res.json({ success: true, data: { ...(await admin.platformStats()), mailConfigured: mailEnabled() } });
-}));
+});
 
-router.get('/users', wrap(async (req, res) => {
-  const result = await admin.listUsers(parse(listSchema, req.query));
+router.get('/users', async (req, res) => {
+  const result = await admin.listUsers(parse(adminUserListSchema, req.query));
   res.json({ success: true, data: result.users, meta: result.meta });
-}));
+});
 
-router.get('/users/:id', wrap(async (req, res) => {
+router.get('/users/:id', async (req, res) => {
   res.json({ success: true, data: await admin.getUser(id(req)) });
-}));
+});
 
 /**
  * Password reset. When SMTP is configured the link is emailed to the user and
  * never shown to the admin. Without SMTP the admin receives a one-time link to
  * pass on through a trusted channel (the action is audited as such).
  */
-router.post('/users/:id/password-reset', wrap(async (req, res) => {
+router.post('/users/:id/password-reset', async (req, res) => {
   const userId = id(req);
   const viaEmail = mailEnabled() || config.isTest;
   const { target, result: token } = await admin.createResetFor(
@@ -80,42 +57,42 @@ router.post('/users/:id/password-reset', wrap(async (req, res) => {
     return res.json({ success: true, data: { emailed: true } });
   }
   return res.json({ success: true, data: { emailed: false, link, expiresInMinutes: 60 } });
-}));
+});
 
-router.post('/users/:id/unlock', wrap(async (req, res) => {
+router.post('/users/:id/unlock', async (req, res) => {
   const userId = id(req);
   await admin.unlockUser(req.user, userId, req.ip);
   await done(res, userId);
-}));
+});
 
-router.post('/users/:id/sign-out', wrap(async (req, res) => {
+router.post('/users/:id/sign-out', async (req, res) => {
   const userId = id(req);
   await admin.signOutEverywhere(req.user, userId, req.ip);
   await done(res, userId);
-}));
+});
 
-router.post('/users/:id/disable', wrap(async (req, res) => {
+router.post('/users/:id/disable', async (req, res) => {
   const userId = id(req);
   await admin.disableUser(req.user, userId, req.ip);
   await done(res, userId);
-}));
+});
 
-router.post('/users/:id/enable', wrap(async (req, res) => {
+router.post('/users/:id/enable', async (req, res) => {
   const userId = id(req);
   await admin.enableUser(req.user, userId, req.ip);
   await done(res, userId);
-}));
+});
 
-router.delete('/users/:id', wrap(async (req, res) => {
+router.delete('/users/:id', async (req, res) => {
   const userId = id(req);
-  const { confirmEmail } = parse(deleteSchema, req.body);
+  const { confirmEmail } = parse(adminDeleteSchema, req.body);
   await admin.deleteUser(req.user, userId, confirmEmail, req.ip);
   res.status(204).end();
-}));
+});
 
-router.get('/audit', wrap(async (req, res) => {
-  const q = parse(auditSchema, req.query);
+router.get('/audit', async (req, res) => {
+  const q = parse(adminAuditSchema, req.query);
   res.json({ success: true, data: await admin.listAudit({ ...q, targetUserId: q.userId }) });
-}));
+});
 
 export default router;

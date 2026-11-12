@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 import { config } from '../config.js';
-import { forbidden, unauthorized, AppError } from '../lib/errors.js';
+import { forbidden, AppError } from '../lib/errors.js';
 import { safeEqual } from '../lib/tokens.js';
 
 const UNSAFE = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
@@ -44,10 +44,6 @@ export function ensureCsrfToken(session) {
   return session.csrfToken;
 }
 
-export function requireAuth(req, res, next) {
-  if (!req.session?.userId) return next(unauthorized());
-  return next();
-}
 
 /** Prevent caching of personal API responses by browsers and intermediaries. */
 export function noStore(req, res, next) {

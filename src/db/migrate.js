@@ -36,7 +36,7 @@ export async function migrate() {
         logger.info('Applied migration', { file });
       } catch (err) {
         await client.query('ROLLBACK');
-        throw new Error(`Migration ${file} failed: ${err.message}`);
+        throw new Error(`Migration ${file} failed: ${err.message}`, { cause: err });
       }
     }
   } finally {

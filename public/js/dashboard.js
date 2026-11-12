@@ -3,7 +3,7 @@ import { api } from './api.js';
 import { initPhotos, resetPhotoUI, loadItemPhotos, uploadPendingFor, openPhotoViewer } from './photos.js';
 import { $, $$, esc, icon, toast, showFormError, busy, formData, copyText, confirmDialog } from './ui.js';
 import {
-  CATEGORIES, CATEGORY_KEYS, summarise, formatDate, formatCycle, suggestRenewalDate, addMonths, isISODate,
+  CATEGORIES, CATEGORY_KEYS, summarise, formatDate, formatCycle, suggestRenewalDate, addMonths, isISODate, plainTextReport,
 } from './shared/expiry.js';
 
 const state = { items: [], today: null, filter: 'all', q: '', category: '', loaded: false, user: null, offline: false };
@@ -129,7 +129,7 @@ export function render() {
 
 /** Set by actions that are about to re-render, so render() can restore focus after dialogs close. */
 let lastFocusKey = null;
-export function rememberFocus(id, action) { lastFocusKey = { id, action }; }
+function rememberFocus(id, action) { lastFocusKey = { id, action }; }
 
 function renderBanner(items, counts) {
   const banner = $('#banner');
@@ -412,19 +412,7 @@ async function deleteItem(item) {
 
 /* ---------------- Report ---------------- */
 
-export function plainTextReport() {
-  const { items, counts } = summarise(state.items, state.today, thresholds());
-  const flag = (i) => (i.expired ? '[EXPIRED] ' : i.status === 'critical' ? '[CRITICAL]' : i.status === 'soon' ? '[SOON]    ' : '[VALID]   ');
-  return [
-    'VAULTEXPIRY STATUS REPORT',
-    `Report date: ${formatDate(state.today)} | Total tracked: ${counts.total}`,
-    `Summary: ${counts.critical} critical (${counts.expired} expired) | ${counts.soon} expiring soon | ${counts.valid} valid`,
-    '-'.repeat(60),
-    ...items.map((i) => `${flag(i)} ${i.title}${i.ref ? ` (${i.ref})` : ''} -> ${formatDate(i.expiryDate)} (${i.label})`),
-  ].join('\n');
-}
-
-export function openReport() {
+function openReport() {
   const { items, counts } = summarise(state.items, state.today, thresholds());
   $('#report-sub').textContent = `Generated ${formatDate(state.today)} • ${counts.total} items`;
   $('#report-summary').innerHTML = `
@@ -438,7 +426,7 @@ export function openReport() {
         <td class="mono">${esc(formatDate(i.expiryDate))}</td>
         <td class="num"><span class="badge ${i.status}">${esc(i.label)}</span></td></tr>`).join('')
     : '<tr><td colspan="4" class="muted">No items tracked yet.</td></tr>';
-  $('#report-plaintext').value = plainTextReport();
+  $('#report-plaintext').value = plainTextReport({ items, counts }, state.today);
   $('#report-dialog').showModal();
 }
 
@@ -514,4 +502,3 @@ export function initDashboard() {
   });
 }
 
-export const dashboardState = state;

@@ -72,16 +72,12 @@ export function createApp() {
 
   // Private calendar subscription feed: authenticated by an unguessable token in the URL.
   const feedLimiter = rateLimit({ windowMs: 60_000, limit: 30, standardHeaders: 'draft-8', legacyHeaders: false });
-  app.get('/cal/:token.ics', feedLimiter, async (req, res, next) => {
-    try {
-      const token = String(req.params.token || '');
-      const user = /^[A-Za-z0-9_-]{40,60}$/.test(token) ? await findByCalendarToken(token) : null;
-      if (!user) return res.status(404).type('text/plain').send('Calendar not found');
-      const ics = buildCalendar(await allItems(user.id), { appUrl: config.appUrl });
-      res.set('Cache-Control', 'private, max-age=900').type('text/calendar; charset=utf-8').send(ics);
-    } catch (err) {
-      next(err);
-    }
+  app.get('/cal/:token.ics', feedLimiter, async (req, res) => {
+    const token = String(req.params.token || '');
+    const user = /^[A-Za-z0-9_-]{40,60}$/.test(token) ? await findByCalendarToken(token) : null;
+    if (!user) return res.status(404).type('text/plain').send('Calendar not found');
+    const ics = buildCalendar(await allItems(user.id), { appUrl: config.appUrl });
+    res.set('Cache-Control', 'private, max-age=900').type('text/calendar; charset=utf-8').send(ics);
   });
 
   // Static frontend. The service worker and HTML must always revalidate so updates roll out.

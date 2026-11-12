@@ -12,14 +12,17 @@
     "start": "node src/server.js",
     "dev": "node --watch --env-file-if-exists=.env src/server.js",
     "migrate": "node --env-file-if-exists=.env src/db/migrate.js",
-    "test": "node --env-file-if-exists=.env.test --test --test-concurrency=1 \"test/**/*.test.js\"",
-    "lint:syntax": "node --check src/server.js",
-    "icons": "node scripts/build-icons.js",
-    "seed:demo": "node --env-file-if-exists=.env scripts/seed-demo.js",
     "admin:seed": "node --env-file-if-exists=.env scripts/seed-admin.js",
+    "seed:demo": "node --env-file-if-exists=.env scripts/seed-demo.js",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "node --env-file-if-exists=.env.test --test --test-concurrency=1 \"test/**/*.test.js\"",
+    "test:coverage": "node --env-file-if-exists=.env.test --test --test-concurrency=1 --experimental-test-coverage --test-coverage-exclude=\"test/**\" --test-coverage-exclude=\"e2e/**\" --test-coverage-exclude=\"node_modules/**\" --test-coverage-lines=90 --test-coverage-branches=78 \"test/**/*.test.js\"",
     "test:e2e": "node --env-file-if-exists=.env.test --test --test-concurrency=1 \"e2e/**/*.e2e.js\"",
     "test:all": "npm test && npm run test:e2e",
-    "test:coverage": "node --env-file-if-exists=.env.test --test --test-concurrency=1 --experimental-test-coverage --test-coverage-exclude=\"test/**\" --test-coverage-exclude=\"e2e/**\" --test-coverage-exclude=\"node_modules/**\" --test-coverage-lines=90 --test-coverage-branches=78 \"test/**/*.test.js\""
+    "check": "npm run lint && npm run test:coverage",
+    "icons": "node scripts/build-icons.js",
+    "icons:app": "node scripts/render-app-icons.cjs"
   },
   "dependencies": {
     "argon2": "0.45.1",
@@ -33,9 +36,21 @@
     "zod": "4.6.7"
   },
   "devDependencies": {
+    "@eslint/js": "9.39.5",
     "axe-core": "4.14.0",
+    "eslint": "9.39.5",
+    "globals": "17.13.0",
     "lucide-static": "1.62.0",
     "playwright": "1.63.0",
     "supertest": "7.3.1"
-  }
+  },
+  "keywords": [
+    "expiry",
+    "licence",
+    "reminders",
+    "pwa",
+    "express",
+    "postgresql",
+    "railway"
+  ]
 }

@@ -3,8 +3,8 @@ import { unauthorized, forbidden } from '../lib/errors.js';
 import { ensureCsrfToken } from './security.js';
 
 /** Promisified session helpers. */
-export const regenerate = (req) => new Promise((ok, fail) => req.session.regenerate((e) => (e ? fail(e) : ok())));
-export const saveSession = (req) => new Promise((ok, fail) => req.session.save((e) => (e ? fail(e) : ok())));
+const regenerate = (req) => new Promise((ok, fail) => req.session.regenerate((e) => (e ? fail(e) : ok())));
+const saveSession = (req) => new Promise((ok, fail) => req.session.save((e) => (e ? fail(e) : ok())));
 export const destroySession = (req) => new Promise((ok) => req.session.destroy(() => ok()));
 
 /**

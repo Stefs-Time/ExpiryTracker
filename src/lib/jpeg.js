@@ -43,7 +43,6 @@ export function sanitizeJpeg(buf) {
     if (marker === undefined) throw new InvalidImageError('Truncated JPEG');
     if (marker === EOI) {
       out.push(buf.subarray(pos, pos + 2));
-      pos += 2;
       break;
     }
     if (marker >= 0xd0 && marker <= 0xd7) { // RSTn outside scan: tolerate
@@ -66,7 +65,6 @@ export function sanitizeJpeg(buf) {
       // Entropy-coded data runs until EOI; copy the rest verbatim.
       out.push(buf.subarray(pos));
       sawScan = true;
-      pos = buf.length;
       break;
     }
 

@@ -1,6 +1,6 @@
 /**
- * Renders the PWA PNG icons from an inline SVG using the system Playwright/Chromium.
- * Optional dev tool; outputs are committed. Run: node scripts/render-app-icons.cjs
+ * Renders the PWA PNG icons in public/icons/ from an inline SVG with Playwright (dev dependency).
+ * Outputs are committed; re-run only when the logo changes: npm run icons:app
  */
 const { chromium } = require('playwright');
 const fs = require('fs');

@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SRC = path.join(ROOT, 'node_modules', 'lucide-static', 'icons');
 
-export const ICONS = [
+const ICONS = [
   'shield-check', 'file-text', 'plus', 'circle-alert', 'arrow-up-right', 'layers', 'triangle-alert', 'clock',
   'circle-check', 'search', 'folder-search', 'calendar-plus', 'x', 'clipboard-check', 'copy', 'car', 'id-card',
   'crosshair', 'credit-card', 'globe', 'file-badge', 'umbrella', 'heart-pulse', 'repeat', 'rotate-cw', 'pencil',
