@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>VaultExpiry</title>
+  <meta name="description" content="Track when your licences, cards and documents expire — and renew on time.">
+  <meta name="theme-color" content="#f5f6f8" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#07080a" media="(prefers-color-scheme: dark)">
+  <meta name="color-scheme" content="light dark">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="VaultExpiry">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/icons/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="stylesheet" href="/css/app.css">
+  <!-- Applies the saved theme before first paint (no flash). -->
+  <script src="/js/theme-boot.js"></script>
+  <script type="module" src="/js/app.js"></script>
+</head>
+<body>
+  <a href="#main" class="sr-only">Skip to content</a>
+  <div id="offline-bar" class="offline-bar" hidden role="status">
+    <svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-wifi-off"/></svg>
+    You're offline — showing your last synced data. Changes are disabled until you reconnect.
+  </div>
+
+  <header class="app-header">
+    <div class="container">
+      <a class="brand" href="#/" aria-label="VaultExpiry home">
+        <span class="brand-mark"><svg class="icon" aria-hidden="true"><use href="/icons.svg#i-shield-check"/></svg></span>
+        <span>
+          <span class="brand-name">VaultExpiry</span>
+          <span class="brand-sub">Licences, cards &amp; documents — renewed on time</span>
+        </span>
+      </a>
+      <div class="header-actions">
+        <button type="button" class="icon-btn" id="theme-toggle" aria-label="Theme: system">
+          <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-monitor"/></svg>
+        </button>
+        <span data-auth="in" hidden class="header-actions">
+          <button type="button" class="btn" data-action="open-report">
+            <svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-file-text"/></svg>
+            <span class="label-optional">Status report</span>
+          </button>
+          <button type="button" class="btn btn-primary" data-action="add-item">
+            <svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-plus"/></svg>
+            <span class="label-optional">Add item</span>
+          </button>
+          <div class="menu">
+            <button type="button" class="avatar" id="user-menu-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="user-menu" aria-label="Account menu">?</button>
+            <div class="menu-panel" id="user-menu" role="menu" hidden>
+              <div class="menu-head"><strong id="menu-name"></strong><span id="menu-email"></span></div>
+              <a class="menu-item" role="menuitem" href="#/settings">
+                <svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-settings"/></svg>Settings
+              </a>
+              <button class="menu-item" role="menuitem" type="button" data-action="logout">
+                <svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-log-out"/></svg>Sign out
+              </button>
+            </div>
+          </div>
+        </span>
+      </div>
+    </div>
+  </header>
+
+  <main id="main" tabindex="-1">
+    <!-- ================= AUTH ================= -->
+    <section id="view-auth" class="auth-wrap" hidden>
+      <div class="auth-card">
+        <!-- Login -->
+        <form id="form-login" data-auth-form="login" novalidate>
+          <h1>Welcome back</h1>
+          <p class="lede">Sign in to see what's expiring.</p>
+          <div class="form-error" role="alert" hidden></div>
+          <label class="field"><span class="label">Email</span>
+            <input class="input" type="email" name="email" autocomplete="username" required inputmode="email"></label>
+          <label class="field"><span class="label">Password</span>
+            <span class="password-wrap">
+              <input class="input" type="password" name="password" autocomplete="current-password" required>
+              <button type="button" class="icon-btn" data-action="toggle-password" aria-label="Show password"><svg class="icon" aria-hidden="true"><use href="/icons.svg#i-eye"/></svg></button>
+            </span></label>
+          <button class="btn btn-primary btn-block" type="submit">Sign in</button>
+          <div class="auth-links">
+            <a href="#/forgot">Forgot password?</a>
+            <a href="#/signup" data-signup-link>Create an account</a>
+          </div>
+        </form>
+
+        <!-- Sign up -->
+        <form id="form-signup" data-auth-form="signup" novalidate hidden>
+          <h1>Create your vault</h1>
+          <p class="lede">Track licences, cards and documents in one clean place.</p>
+          <div class="form-error" role="alert" hidden></div>
+          <label class="field"><span class="label">Your name</span>
+            <input class="input" type="text" name="displayName" autocomplete="name" required maxlength="80"></label>
+          <label class="field"><span class="label">Email</span>
+            <input class="input" type="email" name="email" autocomplete="email" required inputmode="email"></label>
+          <label class="field"><span class="label">Password</span>
+            <span class="password-wrap">
+              <input class="input" type="password" name="password" autocomplete="new-password" required minlength="10" maxlength="128" aria-describedby="pw-hint">
+              <button type="button" class="icon-btn" data-action="toggle-password" aria-label="Show password"><svg class="icon" aria-hidden="true"><use href="/icons.svg#i-eye"/></svg></button>
+            </span>
+            <span class="strength" aria-hidden="true"><span></span></span>
+            <span class="hint" id="pw-hint">At least 10 characters. A short phrase is easiest to remember.</span></label>
+          <button class="btn btn-primary btn-block" type="submit">Create account</button>
+          <div class="auth-links"><span class="muted">Already have an account?</span><a href="#/login">Sign in</a></div>
+          <div class="auth-points">
+            <div><svg class="icon" aria-hidden="true"><use href="/icons.svg#i-lock"/></svg>Store masked references only — never full card numbers.</div>
+            <div><svg class="icon" aria-hidden="true"><use href="/icons.svg#i-mail"/></svg>Email reminders before things expire.</div>
+            <div><svg class="icon" aria-hidden="true"><use href="/icons.svg#i-calendar-sync"/></svg>Sync expiry dates to your phone's calendar.</div>
+          </div>
+        </form>
+
+        <!-- Forgot -->
+        <form id="form-forgot" data-auth-form="forgot" novalidate hidden>
+          <h1>Reset your password</h1>
+          <p class="lede">We'll email you a link to choose a new one.</p>
+          <div class="form-error" role="alert" hidden></div>
+          <div class="form-ok" role="status" hidden></div>
+          <label class="field"><span class="label">Email</span>
+            <input class="input" type="email" name="email" autocomplete="email" required></label>
+          <button class="btn btn-primary btn-block" type="submit">Send reset link</button>
+          <div class="auth-links"><a href="#/login">Back to sign in</a></div>
+        </form>
+
+        <!-- Reset -->
+        <form id="form-reset" data-auth-form="reset" novalidate hidden>
+          <h1>Choose a new password</h1>
+          <p class="lede">This signs you out on all other devices.</p>
+          <div class="form-error" role="alert" hidden></div>
+          <label class="field"><span class="label">New password</span>
+            <span class="password-wrap">
+              <input class="input" type="password" name="password" autocomplete="new-password" required minlength="10" maxlength="128">
+              <button type="button" class="icon-btn" data-action="toggle-password" aria-label="Show password"><svg class="icon" aria-hidden="true"><use href="/icons.svg#i-eye"/></svg></button>
+            </span>
+            <span class="strength" aria-hidden="true"><span></span></span></label>
+          <button class="btn btn-primary btn-block" type="submit">Save password</button>
+          <div class="auth-links"><a href="#/login">Back to sign in</a></div>
+        </form>
+      </div>
+    </section>
+
+    <!-- ================= DASHBOARD ================= -->
+    <section id="view-dashboard" hidden>
+      <div class="container stack">
+        <section id="banner" class="banner" aria-live="polite">
+          <div class="banner-main">
+            <div class="banner-icon"><svg class="icon" aria-hidden="true"><use href="/icons.svg#i-clock"/></svg></div>
+            <div>
+              <h1><span id="banner-headline">Loading your vault…</span><span class="chip" id="today-chip"></span></h1>
+              <p id="banner-text"></p>
+            </div>
+          </div>
+          <button type="button" class="link-btn" data-action="open-report">
+            View full report <svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-arrow-up-right"/></svg>
+          </button>
+        </section>
+
+        <section class="kpis" aria-label="Summary">
+          <button type="button" class="kpi" data-filter="all" aria-pressed="true">
+            <span class="kpi-top">Total tracked<span class="kpi-icon"><svg class="icon" aria-hidden="true"><use href="/icons.svg#i-layers"/></svg></span></span>
+            <span class="kpi-value"><strong id="stat-total">–</strong><span>items</span></span>
+          </button>
+          <button type="button" class="kpi critical" data-filter="critical" aria-pressed="false">
+            <span class="kpi-top">Critical / expired<span class="kpi-icon"><svg class="icon" aria-hidden="true"><use href="/icons.svg#i-triangle-alert"/></svg></span></span>
+            <span class="kpi-value"><strong id="stat-critical">–</strong><span id="stat-critical-hint">≤ 30 days / overdue</span></span>
+          </button>
+          <button type="button" class="kpi soon" data-filter="soon" aria-pressed="false">
+            <span class="kpi-top">Expiring soon<span class="kpi-icon"><svg class="icon" aria-hidden="true"><use href="/icons.svg#i-clock"/></svg></span></span>
+            <span class="kpi-value"><strong id="stat-soon">–</strong><span id="stat-soon-hint">31 – 90 days</span></span>
+          </button>
+          <button type="button" class="kpi valid" data-filter="valid" aria-pressed="false">
+            <span class="kpi-top">Active &amp; healthy<span class="kpi-icon"><svg class="icon" aria-hidden="true"><use href="/icons.svg#i-circle-check"/></svg></span></span>
+            <span class="kpi-value"><strong id="stat-valid">–</strong><span id="stat-valid-hint">&gt; 90 days</span></span>
+          </button>
+        </section>
+
+        <section class="toolbar" aria-label="Filters">
+          <div class="segmented" role="group" aria-label="Filter by status" id="filter-tabs">
+            <button type="button" data-filter="all" aria-pressed="true">All items</button>
+            <button type="button" data-filter="critical" aria-pressed="false">Critical &amp; expired</button>
+            <button type="button" data-filter="soon" aria-pressed="false">Expiring soon</button>
+            <button type="button" data-filter="valid" aria-pressed="false">Valid</button>
+          </div>
+          <div class="toolbar-right">
+            <label class="search">
+              <span class="sr-only">Search</span>
+              <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-search"/></svg>
+              <input class="input" type="search" id="search-input" placeholder="Search licence, card, plate…" autocomplete="off">
+            </label>
+            <label><span class="sr-only">Category</span>
+              <select class="select select-compact" id="category-filter"><option value="">All types</option></select>
+            </label>
+          </div>
+        </section>
+
+        <section id="cards-grid" class="grid" aria-live="polite" aria-busy="true"></section>
+
+        <div id="empty-state" class="empty" hidden>
+          <div class="empty-icon"><svg class="icon icon-lg" aria-hidden="true"><use href="/icons.svg#i-folder-search"/></svg></div>
+          <h3 id="empty-title">No matching items</h3>
+          <p id="empty-text">Try clearing your search or filters.</p>
+          <div id="empty-actions"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= SETTINGS ================= -->
+    <section id="view-settings" hidden>
+      <div class="container">
+        <div class="page-head">
+          <a class="icon-btn" href="#/" aria-label="Back to dashboard"><svg class="icon" aria-hidden="true"><use href="/icons.svg#i-arrow-left"/></svg></a>
+          <h1>Settings</h1>
+        </div>
+        <div class="settings-grid">
+          <form class="panel" id="form-profile" novalidate>
+            <h2>Profile &amp; reminders</h2>
+            <p class="muted">Status colours and email reminders use these windows.</p>
+            <div class="form-error" role="alert" hidden></div>
+            <div class="row">
+              <label class="field"><span class="label">Name</span><input class="input" name="displayName" required maxlength="80" autocomplete="name"></label>
+              <label class="field"><span class="label">Timezone</span><select class="select" name="timezone" id="tz-select"></select></label>
+            </div>
+            <div class="row">
+              <label class="field"><span class="label">Critical window (days)</span><input class="input mono" type="number" name="criticalDays" min="1" max="365" required></label>
+              <label class="field"><span class="label">"Expiring soon" window (days)</span><input class="input mono" type="number" name="warningDays" min="2" max="730" required></label>
+            </div>
+            <label class="check field"><input type="checkbox" name="emailReminders">
+              <span>Email me a reminder digest when items enter their renewal, soon, critical, or final-week windows.<span class="hint" id="mail-hint" hidden>Email is not configured on this server yet, so reminders won't be sent.</span></span></label>
+            <div class="panel-actions"><button class="btn btn-primary" type="submit">Save changes</button></div>
+          </form>
+
+          <section class="panel">
+            <h2>Calendar sync</h2>
+            <p class="muted">Subscribe from Google Calendar, Apple Calendar or Outlook to get native reminders on your phone. Anyone with the link can see your item titles, so keep it private.</p>
+            <div id="feed-box" hidden>
+              <div class="feed-url"><input class="input" id="feed-url" readonly aria-label="Calendar subscription URL"><button type="button" class="btn" data-action="copy-feed"><svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-copy"/></svg>Copy</button></div>
+              <p class="hint">Shown once. Generate a new link any time — the old one stops working.</p>
+            </div>
+            <p class="hint" id="feed-status"></p>
+            <div class="panel-actions">
+              <button type="button" class="btn btn-soft" data-action="rotate-feed"><svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-calendar-sync"/></svg><span id="rotate-feed-label">Create subscription link</span></button>
+              <button type="button" class="btn btn-ghost" data-action="revoke-feed" hidden>Turn off</button>
+              <a class="btn" href="/api/reports/calendar.ics" download><svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-calendar"/></svg>Download .ics</a>
+            </div>
+          </section>
+
+          <form class="panel" id="form-password" novalidate>
+            <h2>Change password</h2>
+            <p class="muted">You'll stay signed in here; other devices are signed out.</p>
+            <div class="form-error" role="alert" hidden></div>
+            <div class="row">
+              <label class="field"><span class="label">Current password</span><input class="input" type="password" name="currentPassword" autocomplete="current-password" required></label>
+              <label class="field"><span class="label">New password</span><input class="input" type="password" name="newPassword" autocomplete="new-password" minlength="10" required></label>
+            </div>
+            <div class="panel-actions"><button class="btn" type="submit">Update password</button></div>
+          </form>
+
+          <section class="panel">
+            <h2>Your data</h2>
+            <p class="muted">Download everything, or bring items back from a previous export.</p>
+            <div class="panel-actions">
+              <a class="btn" href="/api/account/export" download><svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-download"/></svg>Export JSON</a>
+              <a class="btn" href="/api/reports/status.csv" download><svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-file-spreadsheet"/></svg>Export CSV</a>
+              <label class="btn"><svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-upload"/></svg>Import JSON<input type="file" id="import-file" accept="application/json,.json" class="sr-only"></label>
+            </div>
+          </section>
+
+          <form class="panel danger" id="form-delete" novalidate>
+            <h2>Delete account</h2>
+            <p class="muted">Permanently removes your account and every tracked item. This cannot be undone.</p>
+            <div class="form-error" role="alert" hidden></div>
+            <label class="field"><span class="label">Confirm with your password</span><input class="input" type="password" name="password" autocomplete="current-password" required></label>
+            <div class="panel-actions"><button class="btn btn-danger" type="submit">Delete my account</button></div>
+          </form>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-footer" data-auth="in" hidden>
+    <div class="container">
+      <span><span class="pulse" aria-hidden="true"></span><span id="sync-status">Synced</span> · Today <span class="mono" id="footer-today"></span></span>
+      <span>Masked references only · Never store full card or ID numbers</span>
+    </div>
+  </footer>
+
+  <!-- ================= ITEM DIALOG ================= -->
+  <dialog id="item-dialog" aria-labelledby="item-dialog-title">
+    <form method="dialog" id="item-form" class="dialog-shell" novalidate>
+      <div class="dialog-head">
+        <div class="dialog-title">
+          <span class="title-icon"><svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-calendar-plus"/></svg></span>
+          <h2 id="item-dialog-title">Track new expiry</h2>
+        </div>
+        <button type="button" class="icon-btn" data-close aria-label="Close"><svg class="icon" aria-hidden="true"><use href="/icons.svg#i-x"/></svg></button>
+      </div>
+      <div class="dialog-body">
+        <div class="form-error" role="alert" hidden></div>
+        <input type="hidden" name="id">
+        <label class="field"><span class="label">Title</span>
+          <input class="input" name="title" required maxlength="120" placeholder="e.g. Driver's licence card (Code B)"></label>
+        <div class="row">
+          <label class="field"><span class="label">Category</span><select class="select" name="category" id="field-category"></select></label>
+          <label class="field"><span class="label">Masked reference</span>
+            <input class="input mono" name="ref" maxlength="40" placeholder="e.g. •••• 4821 or GP-84-ZN" autocomplete="off"></label>
+        </div>
+        <div class="row">
+          <label class="field"><span class="label">Expiry date</span><input class="input mono" type="date" name="expiryDate" required></label>
+          <label class="field"><span class="label">Validity cycle</span>
+            <select class="select mono" name="cycleMonths">
+              <option value="1">1 month</option><option value="3">3 months</option><option value="6">6 months</option>
+              <option value="12">1 year</option><option value="24">2 years</option><option value="36">3 years</option>
+              <option value="48">4 years</option><option value="60">5 years</option><option value="120">10 years</option>
+            </select></label>
+        </div>
+        <label class="field"><span class="label">Start renewal (days before expiry)</span>
+          <input class="input mono" type="number" name="leadDays" min="0" max="365" required>
+          <span class="hint">Some renewals take months (e.g. firearm licences: apply at least 90 days before).</span></label>
+        <label class="field"><span class="label">Note <span class="faint">(optional)</span></span>
+          <textarea class="input textarea" name="note" rows="2" maxlength="500" placeholder="e.g. Renew via eNaTIS or at the DLTC"></textarea></label>
+      </div>
+      <div class="dialog-foot">
+        <button type="button" class="btn btn-ghost" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary" id="item-submit">Save item</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- ================= RENEW DIALOG ================= -->
+  <dialog id="renew-dialog" aria-labelledby="renew-title">
+    <form method="dialog" id="renew-form" class="dialog-shell" novalidate>
+      <div class="dialog-head">
+        <div class="dialog-title">
+          <span class="title-icon"><svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-rotate-cw"/></svg></span>
+          <div><h2 id="renew-title">Mark as renewed</h2><p id="renew-sub"></p></div>
+        </div>
+        <button type="button" class="icon-btn" data-close aria-label="Close"><svg class="icon" aria-hidden="true"><use href="/icons.svg#i-x"/></svg></button>
+      </div>
+      <div class="dialog-body">
+        <div class="form-error" role="alert" hidden></div>
+        <input type="hidden" name="id">
+        <label class="field"><span class="label">New expiry date</span><input class="input mono" type="date" name="newExpiryDate" required>
+          <span class="hint" id="renew-hint"></span></label>
+        <ul class="history" id="renew-history"></ul>
+      </div>
+      <div class="dialog-foot">
+        <button type="button" class="btn btn-ghost" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Save renewal</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- ================= CONFIRM DIALOG ================= -->
+  <dialog id="confirm-dialog" aria-labelledby="confirm-title">
+    <form method="dialog" class="dialog-shell">
+      <div class="dialog-head">
+        <div class="dialog-title">
+          <span class="title-icon red"><svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-trash-2"/></svg></span>
+          <h2 id="confirm-title">Delete item?</h2>
+        </div>
+      </div>
+      <div class="dialog-body"><p id="confirm-text" class="muted"></p></div>
+      <div class="dialog-foot">
+        <button value="cancel" class="btn btn-ghost">Cancel</button>
+        <button value="confirm" class="btn btn-danger" id="confirm-ok">Delete</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- ================= REPORT DIALOG ================= -->
+  <dialog id="report-dialog" class="wide" aria-labelledby="report-title">
+    <div class="dialog-shell">
+      <div class="dialog-head">
+        <div class="dialog-title">
+          <span class="title-icon sky"><svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-clipboard-check"/></svg></span>
+          <div><h2 id="report-title">Expiry status report</h2><p id="report-sub"></p></div>
+        </div>
+        <button type="button" class="icon-btn" data-close aria-label="Close"><svg class="icon" aria-hidden="true"><use href="/icons.svg#i-x"/></svg></button>
+      </div>
+      <div class="dialog-body">
+        <div class="report-summary" id="report-summary"></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th scope="col">Item</th><th scope="col">Ref</th><th scope="col">Expiry</th><th scope="col" class="num">Status</th></tr></thead>
+            <tbody id="report-body"></tbody>
+          </table>
+        </div>
+        <div class="export-actions">
+          <button type="button" class="btn btn-sm" data-action="copy-report"><svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-copy"/></svg>Copy summary</button>
+          <button type="button" class="btn btn-sm" data-action="print-report"><svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-printer"/></svg>Print / PDF</button>
+          <a class="btn btn-sm" href="/api/reports/status.csv" download><svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-file-spreadsheet"/></svg>CSV</a>
+          <a class="btn btn-sm" href="/api/reports/calendar.ics" download><svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-calendar"/></svg>Calendar (.ics)</a>
+        </div>
+        <div class="plaintext-block">
+          <label class="label" for="report-plaintext">Plain-text summary</label>
+          <textarea id="report-plaintext" class="input plaintext" rows="7" readonly></textarea>
+        </div>
+      </div>
+      <div class="dialog-foot">
+        <span class="spacer">Sorted by urgency — most critical first</span>
+        <button type="button" class="btn" data-close>Done</button>
+      </div>
+    </div>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite">
+    <svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-circle-check"/></svg>
+    <span id="toast-msg"></span>
+    <button type="button" class="btn btn-sm btn-ghost" id="toast-action" hidden></button>
+  </div>
+</body>
+</html>

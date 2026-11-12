@@ -1,0 +1,35 @@
+{
+  "name": "vaultexpiry",
+  "version": "1.0.0",
+  "private": true,
+  "description": "VaultExpiry — a clean, simple personal tracker for licence, card and document expiry dates.",
+  "type": "module",
+  "main": "src/server.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch --env-file-if-exists=.env src/server.js",
+    "migrate": "node --env-file-if-exists=.env src/db/migrate.js",
+    "test": "node --env-file-if-exists=.env.test --test --test-concurrency=1 \"test/**/*.test.js\"",
+    "lint:syntax": "node --check src/server.js",
+    "icons": "node scripts/build-icons.js",
+    "seed:demo": "node --env-file-if-exists=.env scripts/seed-demo.js"
+  },
+  "dependencies": {
+    "argon2": "0.45.1",
+    "connect-pg-simple": "10.0.0",
+    "express": "5.3.0",
+    "express-rate-limit": "8.7.1",
+    "express-session": "1.19.0",
+    "helmet": "8.3.0",
+    "nodemailer": "10.2.1",
+    "pg": "8.23.1",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "lucide-static": "1.62.0",
+    "supertest": "7.3.1"
+  }
+}

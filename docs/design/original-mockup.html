@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VaultExpiry — Personal Expiry & Compliance Tracker</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        obsidian: {
+                            950: '#07080a',
+                            900: '#0c0e12',
+                            850: '#11141a',
+                            800: '#161a22',
+                            700: '#1f2530',
+                        }
+                    },
+                    boxShadow: {
+                        'glow-red': '0 0 24px -6px rgba(244, 63, 94, 0.25)',
+                        'glow-amber': '0 0 24px -6px rgba(245, 158, 11, 0.22)',
+                        'glow-emerald': '0 0 24px -6px rgba(16, 185, 129, 0.18)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        /* Custom subtle scrollbar & sleek micro-interactions */
+        body {
+            background-color: #07080a;
+            color: #f1f5f9;
+            background-image: 
+                radial-gradient(circle at 15% 0%, rgba(16, 185, 129, 0.04) 0%, transparent 40%),
+                radial-gradient(circle at 85% 10%, rgba(56, 189, 248, 0.04) 0%, transparent 40%);
+            min-height: 100vh;
+        }
+
+        /* Custom Date Input Icon Color in Dark Mode */
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(0.8);
+            cursor: pointer;
+        }
+
+        .glass-panel {
+            background: rgba(17, 20, 26, 0.78);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+        }
+
+        .card-hover {
+            transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+        .card-hover:hover {
+            transform: translateY(-2px);
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0c0e12;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1f2530;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #334155;
+        }
+    </style>
+</head>
+<body class="antialiased selection:bg-emerald-500/30 selection:text-emerald-200">
+
+    <!-- Top Navigation Bar -->
+    <header class="sticky top-0 z-30 border-b border-slate-800/80 glass-panel">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+            <!-- Brand Identity -->
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500/20 to-teal-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                    <i data-lucide="shield-check" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="font-semibold tracking-tight text-slate-100 text-base">VaultExpiry</span>
+                        <span class="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-mono uppercase tracking-wider bg-slate-800/90 text-slate-400 border border-slate-700/70">
+                            Synced • 12 Nov 2026
+                        </span>
+                    </div>
+                    <p class="text-[11px] text-slate-500 hidden sm:block">Personal compliance, licenses & cards</p>
+                </div>
+            </div>
+
+            <!-- Primary Actions -->
+            <div class="flex items-center gap-2.5">
+                <button onclick="openReportModal()" class="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs sm:text-sm font-medium bg-obsidian-800 hover:bg-obsidian-700 text-slate-200 border border-slate-700/80 transition-colors">
+                    <i data-lucide="file-text" class="w-4 h-4 text-slate-400"></i>
+                    <span>Status Report</span>
+                </button>
+                <button onclick="openAddModal()" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-medium bg-emerald-500 hover:bg-emerald-400 text-obsidian-950 shadow-lg shadow-emerald-500/15 transition-all font-semibold">
+                    <i data-lucide="plus" class="w-4 h-4 stroke-[2.5]"></i>
+                    <span>Add Item</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-7">
+
+        <!-- Live Executive Summary Banner -->
+        <section id="executive-banner" class="rounded-2xl border border-slate-800/90 bg-obsidian-900/90 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div class="flex items-start sm:items-center gap-3.5">
+                <div id="banner-icon-wrap" class="w-10 h-10 rounded-xl bg-rose-500/10 border border-rose-500/25 flex items-center justify-center text-rose-400 shrink-0 mt-0.5 sm:mt-0">
+                    <i data-lucide="alert-circle" class="w-5 h-5"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <h1 class="text-sm sm:text-base font-semibold text-slate-100" id="banner-headline">Attention Required: Immediate Renewals Needed</h1>
+                        <span class="font-mono text-[11px] px-2 py-0.5 rounded-md bg-slate-800 text-slate-400 border border-slate-700/60" id="today-date-label">12 NOV 2026</span>
+                    </div>
+                    <p class="text-xs sm:text-sm text-slate-400 mt-1 leading-relaxed" id="banner-subtext">
+                        Loading compliance summary...
+                    </p>
+                </div>
+            </div>
+            <button onclick="openReportModal()" class="self-start sm:self-center shrink-0 inline-flex items-center gap-1.5 text-xs font-mono uppercase tracking-wider text-emerald-400 hover:text-emerald-300 px-3 py-2 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/15 border border-emerald-500/20 transition-colors">
+                <span>View Full Audit</span>
+                <i data-lucide="arrow-up-right" class="w-3.5 h-3.5"></i>
+            </button>
+        </section>
+
+        <!-- KPI Summary Metric Cards -->
+        <section class="grid grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
+            <!-- Total Tracked -->
+            <button onclick="setFilter('all')" class="text-left rounded-2xl border border-slate-800/90 bg-obsidian-900/75 hover:border-slate-700 p-4 sm:p-5 transition-all group">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-medium text-slate-400 group-hover:text-slate-300">Total Tracked</span>
+                    <span class="w-7 h-7 rounded-lg bg-slate-800/90 flex items-center justify-center text-slate-400">
+                        <i data-lucide="layers" class="w-3.5 h-3.5"></i>
+                    </span>
+                </div>
+                <div class="mt-3 flex items-baseline gap-2">
+                    <span id="stat-total" class="font-mono text-2xl sm:text-3xl font-bold text-slate-100">0</span>
+                    <span class="text-xs text-slate-500">documents</span>
+                </div>
+            </button>
+
+            <!-- Critical / Expired (< 30d or Past Due) -->
+            <button onclick="setFilter('critical')" class="text-left rounded-2xl border border-rose-500/25 bg-obsidian-900/75 hover:border-rose-500/50 p-4 sm:p-5 transition-all group">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-medium text-rose-300/90">Critical / Expired</span>
+                    <span class="w-7 h-7 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-400">
+                        <i data-lucide="alert-triangle" class="w-3.5 h-3.5"></i>
+                    </span>
+                </div>
+                <div class="mt-3 flex items-baseline gap-2">
+                    <span id="stat-critical" class="font-mono text-2xl sm:text-3xl font-bold text-rose-400">0</span>
+                    <span class="text-xs text-slate-500">&le; 30 days / overdue</span>
+                </div>
+            </button>
+
+            <!-- Expiring Soon (31 - 90 days) -->
+            <button onclick="setFilter('soon')" class="text-left rounded-2xl border border-amber-500/25 bg-obsidian-900/75 hover:border-amber-500/50 p-4 sm:p-5 transition-all group">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-medium text-amber-300/90">Expiring Soon</span>
+                    <span class="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                        <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+                    </span>
+                </div>
+                <div class="mt-3 flex items-baseline gap-2">
+                    <span id="stat-soon" class="font-mono text-2xl sm:text-3xl font-bold text-amber-400">0</span>
+                    <span class="text-xs text-slate-500">31 – 90 days</span>
+                </div>
+            </button>
+
+            <!-- Active & Valid (> 90 days) -->
+            <button onclick="setFilter('valid')" class="text-left rounded-2xl border border-emerald-500/25 bg-obsidian-900/75 hover:border-emerald-500/50 p-4 sm:p-5 transition-all group">
+                <div class="flex items-center justify-between">
+                    <span class="text-xs font-medium text-emerald-300/90">Active &amp; Healthy</span>
+                    <span class="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                        <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i>
+                    </span>
+                </div>
+                <div class="mt-3 flex items-baseline gap-2">
+                    <span id="stat-valid" class="font-mono text-2xl sm:text-3xl font-bold text-emerald-400">0</span>
+                    <span class="text-xs text-slate-500">&gt; 90 days valid</span>
+                </div>
+            </button>
+        </section>
+
+        <!-- Controls Toolbar: Filter Tabs & Search -->
+        <section class="flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 pt-1">
+            <!-- Filter Pills -->
+            <div class="inline-flex items-center p-1 rounded-xl bg-obsidian-900 border border-slate-800/90 overflow-x-auto max-w-full" id="filter-tabs">
+                <button data-filter="all" onclick="setFilter('all')" class="filter-btn px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap bg-slate-800 text-slate-100 shadow-sm">
+                    All Items
+                </button>
+                <button data-filter="critical" onclick="setFilter('critical')" class="filter-btn px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap text-slate-400 hover:text-slate-200">
+                    Critical &amp; Expired
+                </button>
+                <button data-filter="soon" onclick="setFilter('soon')" class="filter-btn px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap text-slate-400 hover:text-slate-200">
+                    Expiring Soon
+                </button>
+                <button data-filter="valid" onclick="setFilter('valid')" class="filter-btn px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap text-slate-400 hover:text-slate-200">
+                    Valid
+                </button>
+            </div>
+
+            <!-- Search Input -->
+            <div class="relative w-full sm:w-72">
+                <i data-lucide="search" class="w-4 h-4 text-slate-500 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+                <input 
+                    type="text" 
+                    id="search-input" 
+                    oninput="handleSearch(this.value)"
+                    placeholder="Search license, card, plate..." 
+                    class="w-full pl-10 pr-4 py-2 rounded-xl bg-obsidian-900 border border-slate-800/90 focus:border-emerald-500/50 focus:outline-none focus:ring-2 focus:ring-emerald-500/15 text-xs sm:text-sm text-slate-200 placeholder-slate-500 transition-all"
+                >
+            </div>
+        </section>
+
+        <!-- Cards Grid -->
+        <section id="cards-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+            <!-- Dynamically populated by JS -->
+        </section>
+
+        <!-- Empty State -->
+        <div id="empty-state" class="hidden rounded-2xl border border-dashed border-slate-800 bg-obsidian-900/40 py-16 px-6 text-center">
+            <div class="w-12 h-12 rounded-2xl bg-slate-800/80 border border-slate-700/70 flex items-center justify-center text-slate-400 mx-auto mb-3">
+                <i data-lucide="folder-search" class="w-6 h-6"></i>
+            </div>
+            <h3 class="text-sm font-semibold text-slate-200">No matching documents found</h3>
+            <p class="text-xs text-slate-500 mt-1 max-w-sm mx-auto">Try clearing your search filter or add a new license, card, or subscription to track.</p>
+            <button onclick="resetFilters()" class="mt-4 px-4 py-2 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors">
+                Reset Filters
+            </button>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 mt-6 border-t border-slate-800/60 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+        <div class="flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span>Local-first encrypted mockup • Reference Clock: <span class="font-mono text-slate-400">2026-11-12</span></span>
+        </div>
+        <button onclick="resetDemoData()" class="text-slate-500 hover:text-slate-300 underline underline-offset-4 transition-colors">
+            Restore Default Sample Data
+        </button>
+    </footer>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL 1: ADD / RENEW ITEM MODAL                                       -->
+    <!-- ===================================================================== -->
+    <div id="item-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
+        <div class="w-full max-w-md rounded-2xl bg-obsidian-900 border border-slate-800 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/25 flex items-center justify-center text-emerald-400">
+                        <i data-lucide="calendar-plus" class="w-4 h-4"></i>
+                    </div>
+                    <h2 id="modal-title" class="text-base font-semibold text-slate-100">Track New Expiry</h2>
+                </div>
+                <button onclick="closeItemModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <form id="item-form" onsubmit="handleItemSubmit(event)" class="p-6 space-y-4">
+                <input type="hidden" id="edit-item-id">
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1.5">Document / Card Title</label>
+                    <input type="text" id="field-title" required placeholder="e.g. Driver's License Card, FNB Premier Card" class="w-full px-3.5 py-2.5 rounded-xl bg-obsidian-950 border border-slate-800 focus:border-emerald-500/60 focus:outline-none text-sm text-slate-100 placeholder-slate-600">
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1.5">Category</label>
+                        <select id="field-category" class="w-full px-3.5 py-2.5 rounded-xl bg-obsidian-950 border border-slate-800 focus:border-emerald-500/60 focus:outline-none text-sm text-slate-100">
+                            <option value="Vehicle">Vehicle &amp; Disc</option>
+                            <option value="License">Driver's License</option>
+                            <option value="Firearm">Firearm License</option>
+                            <option value="Banking">Bank Card</option>
+                            <option value="Identity">Passport / ID</option>
+                            <option value="Other">Other Compliance</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1.5">Masked Ref / Tag</label>
+                        <input type="text" id="field-ref" required placeholder="e.g. •••• 4821 or GP-84-ZN" class="w-full px-3.5 py-2.5 rounded-xl bg-obsidian-950 border border-slate-800 focus:border-emerald-500/60 focus:outline-none font-mono text-sm text-slate-100 placeholder-slate-600">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1.5">Expiry Date</label>
+                        <input type="date" id="field-expiry" required class="w-full px-3.5 py-2.5 rounded-xl bg-obsidian-950 border border-slate-800 focus:border-emerald-500/60 focus:outline-none font-mono text-sm text-slate-100">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-400 mb-1.5">Validity Cycle (Years)</label>
+                        <select id="field-cycle" class="w-full px-3.5 py-2.5 rounded-xl bg-obsidian-950 border border-slate-800 focus:border-emerald-500/60 focus:outline-none font-mono text-sm text-slate-100">
+                            <option value="1">1 Year (Annual)</option>
+                            <option value="3">3 Years</option>
+                            <option value="5" selected>5 Years</option>
+                            <option value="10">10 Years</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1.5">Quick Note (Optional)</label>
+                    <input type="text" id="field-note" placeholder="e.g. Renew via eNaTIS or SAPS DFO" class="w-full px-3.5 py-2.5 rounded-xl bg-obsidian-950 border border-slate-800 focus:border-emerald-500/60 focus:outline-none text-sm text-slate-100 placeholder-slate-600">
+                </div>
+
+                <div class="pt-3 flex items-center justify-end gap-2.5 border-t border-slate-800/80">
+                    <button type="button" onclick="closeItemModal()" class="px-4 py-2 rounded-xl text-xs font-medium text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" id="modal-submit-btn" class="px-5 py-2 rounded-xl text-xs font-semibold bg-emerald-500 hover:bg-emerald-400 text-obsidian-950 transition-colors">
+                        Save Tracker
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL 2: COMPLIANCE & EXPIRY STATUS REPORT MODAL                      -->
+    <!-- ===================================================================== -->
+    <div id="report-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4 bg-black/75 backdrop-blur-sm">
+        <div class="w-full max-w-2xl rounded-2xl bg-obsidian-900 border border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="px-6 py-4 border-b border-slate-800 flex items-center justify-between shrink-0">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-8 h-8 rounded-lg bg-sky-500/10 border border-sky-500/25 flex items-center justify-center text-sky-400">
+                        <i data-lucide="clipboard-check" class="w-4 h-4"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-base font-semibold text-slate-100">Compliance &amp; Expiry Status Report</h2>
+                        <p class="text-[11px] font-mono text-slate-500">GENERATED 12 NOV 2026 • AUDIT SNAPSHOT</p>
+                    </div>
+                </div>
+                <button onclick="closeReportModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <div class="p-6 overflow-y-auto space-y-5">
+                <!-- Visual Health Summary Strip -->
+                <div id="report-visual-summary" class="grid grid-cols-3 gap-3">
+                    <!-- Populated via JS -->
+                </div>
+
+                <!-- Structured Audit Table -->
+                <div class="rounded-xl border border-slate-800 overflow-hidden">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-obsidian-950 border-b border-slate-800 text-[11px] font-mono uppercase tracking-wider text-slate-400">
+                                <th class="py-2.5 px-3.5">Item</th>
+                                <th class="py-2.5 px-3.5">Ref</th>
+                                <th class="py-2.5 px-3.5">Expiry</th>
+                                <th class="py-2.5 px-3.5 text-right">Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="report-table-body" class="divide-y divide-slate-800/70 text-xs">
+                            <!-- Populated via JS -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Plaintext Copyable Report Box -->
+                <div>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <span class="text-xs font-medium text-slate-400">Plaintext Audit Export</span>
+                        <button onclick="copyAuditReport()" id="copy-report-btn" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-mono bg-slate-800 hover:bg-slate-700 text-emerald-400 border border-slate-700 transition-colors">
+                            <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                            <span>Copy Summary</span>
+                        </button>
+                    </div>
+                    <textarea id="report-plaintext" readonly rows="7" class="w-full p-3.5 rounded-xl bg-obsidian-950 border border-slate-800 font-mono text-xs text-slate-300 leading-relaxed focus:outline-none resize-none"></textarea>
+                </div>
+            </div>
+
+            <div class="px-6 py-3.5 border-t border-slate-800 bg-obsidian-950/60 flex items-center justify-between shrink-0">
+                <span class="text-[11px] text-slate-500">Sorted by urgency (most critical first)</span>
+                <button onclick="closeReportModal()" class="px-4 py-1.5 rounded-xl text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 transition-colors">
+                    Done
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Subtle Toast Notification -->
+    <div id="toast" class="fixed bottom-5 right-5 z-50 translate-y-16 opacity-0 pointer-events-none transition-all duration-300 flex items-center gap-2.5 px-4 py-3 rounded-xl bg-obsidian-800 border border-slate-700 shadow-2xl text-xs font-medium text-slate-100">
+        <i data-lucide="check-circle" class="w-4 h-4 text-emerald-400"></i>
+        <span id="toast-message">Action completed</span>
+    </div>
+
+    <script>
+        /**
+         * VaultExpiry Application Logic
+         * Reference Date anchored to current session date: Thursday, November 12, 2026
+         */
+        const REFERENCE_DATE_STR = '2026-11-12';
+        const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
+        // Parse YYYY-MM-DD safely in local midnight
+        function parseLocalDate(dateStr) {
+            const [y, m, d] = dateStr.split('-').map(Number);
+            return new Date(y, m - 1, d);
+        }
+
+        const TODAY = parseLocalDate(REFERENCE_DATE_STR);
+
+        // Default realistic South African / everyday documents relative to 12 Nov 2026
+        const DEFAULT_ITEMS = [
+            {
+                id: 'item-1',
+                title: 'Car License Disc (VW Tiguan)',
+                category: 'Vehicle',
+                ref: 'GP ••• 492-ZN',
+                expiryDate: '2026-10-31', // Expired 12 days ago (within 21-day SA grace window)
+                cycleYears: 1,
+                note: 'Renew via eNaTIS Online or Post Office'
+            },
+            {
+                id: 'item-2',
+                title: "Driver's License Card (Code B)",
+                category: 'License',
+                ref: 'DL •••• 8834',
+                expiryDate: '2026-12-04', // 22 days left (Critical < 30 days)
+                cycleYears: 5,
+                note: 'Eye test & DLTC booking required'
+            },
+            {
+                id: 'item-3',
+                title: 'Primary Cheque Bank Card',
+                category: 'Banking',
+                ref: '•••• •••• •••• 7419',
+                expiryDate: '2027-01-08', // 57 days left (Expiring Soon 31-90 days)
+                cycleYears: 5,
+                note: 'Auto-renews; update debit orders on arrival'
+            },
+            {
+                id: 'item-4',
+                title: 'Firearm License (Sec 13 Self-Defence)',
+                category: 'Firearm',
+                ref: 'SAPS •••• 3109',
+                expiryDate: '2027-08-19', // 280 days left (Valid > 90 days)
+                cycleYears: 5,
+                note: 'Submit renewal 90+ days before expiry'
+            },
+            {
+                id: 'item-5',
+                title: 'SA Tourist Passport',
+                category: 'Identity',
+                ref: 'M00 •••• 612',
+                expiryDate: '2031-04-22', // 1,622 days left (Valid > 90 days)
+                cycleYears: 10,
+                note: 'DHA Smart ID & Passport branch'
+            },
+            {
+                id: 'item-6',
+                title: 'Firearm Competency Certificate',
+                category: 'Firearm',
+                ref: 'COMP •••• 904',
+                expiryDate: '2029-05-14', // 914 days left (Valid > 90 days)
+                cycleYears: 5,
+                note: 'Handgun & Rifle proficiency valid'
+            }
+        ];
+
+        let items = [];
+        let currentFilter = 'all';
+        let searchQuery = '';
+
+        // Load from localStorage or initialize defaults
+        function initData() {
+            const saved = localStorage.getItem('vault_expiry_items_v1');
+            if (saved) {
+                try {
+                    items = JSON.parse(saved);
+                } catch (e) {
+                    items = [...DEFAULT_ITEMS];
+                }
+            } else {
+                items = [...DEFAULT_ITEMS];
+                saveData();
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem('vault_expiry_items_v1', JSON.stringify(items));
+        }
+
+        function resetDemoData() {
+            items = [...DEFAULT_ITEMS];
+            saveData();
+            renderApp();
+            showToast('Restored default sample documents');
+        }
+
+        // Calculate days remaining and status metadata
+        function evaluateItem(item) {
+            const expDate = parseLocalDate(item.expiryDate);
+            const diffDays = Math.round((expDate - TODAY) / MS_PER_DAY);
+            const totalCycleDays = (item.cycleYears || 5) * 365;
+
+            let status = 'valid'; // 'critical' | 'soon' | 'valid'
+            let badgeText = '';
+            let progressPct = 0;
+
+            if (diffDays < 0) {
+                status = 'critical';
+                const overdue = Math.abs(diffDays);
+                badgeText = overdue === 1 ? 'EXPIRED 1 DAY AGO' : `EXPIRED ${overdue} DAYS AGO`;
+                progressPct = 100;
+            } else if (diffDays === 0) {
+                status = 'critical';
+                badgeText = 'EXPIRES TODAY';
+                progressPct = 100;
+            } else if (diffDays <= 30) {
+                status = 'critical';
+                badgeText = diffDays === 1 ? '1 DAY LEFT' : `${diffDays} DAYS LEFT`;
+                progressPct = Math.max(8, Math.min(96, 100 - Math.round((diffDays / totalCycleDays) * 100)));
+            } else if (diffDays <= 90) {
+                status = 'soon';
+                badgeText = `${diffDays} DAYS LEFT`;
+                progressPct = Math.max(12, Math.min(92, 100 - Math.round((diffDays / totalCycleDays) * 100)));
+            } else {
+                status = 'valid';
+                badgeText = `${diffDays.toLocaleString()} DAYS LEFT`;
+                // Remaining health bar (more remaining = fuller green bar)
+                const remainingRatio = Math.min(1, diffDays / totalCycleDays);
+                progressPct = Math.max(18, Math.round(remainingRatio * 100));
+            }
+
+            return {
+                ...item,
+                diffDays,
+                status,
+                badgeText,
+                progressPct,
+                formattedDate: formatDisplayDate(expDate)
+            };
+        }
+
+        function formatDisplayDate(dateObj) {
+            return dateObj.toLocaleDateString('en-GB', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric'
+            }).toUpperCase();
+        }
+
+        // Category icon mapping
+        function getCategoryMeta(category) {
+            const map = {
+                Vehicle: { icon: 'car', label: 'Vehicle Disc' },
+                License: { icon: 'id-card', label: "Driver's License" },
+                Firearm: { icon: 'crosshair', label: 'Firearm' },
+                Banking: { icon: 'credit-card', label: 'Bank Card' },
+                Identity: { icon: 'globe', label: 'Passport / ID' },
+                Other: { icon: 'file-badge', label: 'Document' }
+            };
+            return map[category] || map.Other;
+        }
+
+        // Theme styling per status
+        function getStatusStyles(status) {
+            if (status === 'critical') {
+                return {
+                    border: 'border-rose-500/35 hover:border-rose-500/65',
+                    glow: 'shadow-glow-red',
+                    badgeBg: 'bg-rose-500/15 text-rose-300 border-rose-500/30',
+                    dot: 'bg-rose-500',
+                    barColor: 'bg-rose-500',
+                    iconColor: 'text-rose-400 bg-rose-500/10 border-rose-500/20'
+                };
+            }
+            if (status === 'soon') {
+                return {
+                    border: 'border-amber-500/30 hover:border-amber-500/60',
+                    glow: 'shadow-glow-amber',
+                    badgeBg: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+                    dot: 'bg-amber-400',
+                    barColor: 'bg-amber-400',
+                    iconColor: 'text-amber-400 bg-amber-500/10 border-amber-500/20'
+                };
+            }
+            return {
+                border: 'border-slate-800/90 hover:border-emerald-500/40',
+                glow: 'shadow-glow-emerald',
+                badgeBg: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25',
+                dot: 'bg-emerald-400',
+                barColor: 'bg-emerald-500',
+                iconColor: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
+            };
+        }
+
+        // Main Render Pipeline
+        function renderApp() {
+            const evaluated = items
+                .map(evaluateItem)
+                .sort((a, b) => a.diffDays - b.diffDays); // Most urgent first
+
+            // Compute stats
+            const total = evaluated.length;
+            const criticalItems = evaluated.filter(i => i.status === 'critical');
+            const soonItems = evaluated.filter(i => i.status === 'soon');
+            const validItems = evaluated.filter(i => i.status === 'valid');
+
+            document.getElementById('stat-total').textContent = total;
+            document.getElementById('stat-critical').textContent = criticalItems.length;
+            document.getElementById('stat-soon').textContent = soonItems.length;
+            document.getElementById('stat-valid').textContent = validItems.length;
+
+            // Update Executive Status Banner
+            updateExecutiveBanner(evaluated, criticalItems, soonItems, validItems);
+
+            // Filter & Search
+            const filtered = evaluated.filter(item => {
+                const matchesFilter = currentFilter === 'all' || item.status === currentFilter;
+                const q = searchQuery.trim().toLowerCase();
+                const matchesSearch = !q || 
+                    item.title.toLowerCase().includes(q) ||
+                    item.category.toLowerCase().includes(q) ||
+                    item.ref.toLowerCase().includes(q) ||
+                    (item.note && item.note.toLowerCase().includes(q));
+                return matchesFilter && matchesSearch;
+            });
+
+            const grid = document.getElementById('cards-grid');
+            const emptyState = document.getElementById('empty-state');
+
+            if (filtered.length === 0) {
+                grid.innerHTML = '';
+                emptyState.classList.remove('hidden');
+            } else {
+                emptyState.classList.add('hidden');
+                grid.innerHTML = filtered.map(item => renderCardHTML(item)).join('');
+            }
+
+            // Re-initialize Lucide icons
+            lucide.createIcons();
+        }
+
+        function updateExecutiveBanner(all, critical, soon, valid) {
+            const banner = document.getElementById('executive-banner');
+            const iconWrap = document.getElementById('banner-icon-wrap');
+            const headline = document.getElementById('banner-headline');
+            const subtext = document.getElementById('banner-subtext');
+
+            if (critical.length > 0) {
+                banner.className = 'rounded-2xl border border-rose-500/30 bg-gradient-to-r from-rose-950/30 via-obsidian-900 to-obsidian-900 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4';
+                iconWrap.className = 'w-10 h-10 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-400 shrink-0 mt-0.5 sm:mt-0';
+                iconWrap.innerHTML = '<i data-lucide="alert-circle" class="w-5 h-5"></i>';
+                headline.textContent = `${critical.length} Critical ${critical.length === 1 ? 'Item Requires' : 'Items Require'} Immediate Action`;
+                
+                const names = critical.map(c => `${c.title} (${c.badgeText.toLowerCase()})`).join(' • ');
+                subtext.innerHTML = `<span class="text-rose-300 font-medium">Priority:</span> ${names}. ${soon.length > 0 ? `${soon.length} more expiring within 90 days.` : ''}`;
+            } else if (soon.length > 0) {
+                banner.className = 'rounded-2xl border border-amber-500/30 bg-gradient-to-r from-amber-950/25 via-obsidian-900 to-obsidian-900 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4';
+                iconWrap.className = 'w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0 mt-0.5 sm:mt-0';
+                iconWrap.innerHTML = '<i data-lucide="clock" class="w-5 h-5"></i>';
+                headline.textContent = `Upcoming Renewals: ${soon.length} ${soon.length === 1 ? 'Item' : 'Items'} Expiring Within 90 Days`;
+                subtext.textContent = `All critical documents are currently valid. Plan ahead for ${soon.map(s => s.title).join(', ')}.`;
+            } else {
+                banner.className = 'rounded-2xl border border-emerald-500/30 bg-gradient-to-r from-emerald-950/25 via-obsidian-900 to-obsidian-900 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4';
+                iconWrap.className = 'w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0 mt-0.5 sm:mt-0';
+                iconWrap.innerHTML = '<i data-lucide="shield-check" class="w-5 h-5"></i>';
+                headline.textContent = 'All Tracked Licenses & Cards Are Up to Date';
+                subtext.textContent = `100% compliance across ${all.length} tracked items. Next renewal is over 90 days away.`;
+            }
+        }
+
+        function renderCardHTML(item) {
+            const cat = getCategoryMeta(item.category);
+            const st = getStatusStyles(item.status);
+            const barLabel = item.status === 'valid' ? 'Remaining Validity' : (item.diffDays < 0 ? 'Overdue' : 'Cycle Elapsed');
+
+            return `
+                <article class="card-hover rounded-2xl bg-obsidian-900/90 border ${st.border} ${st.glow} p-5 flex flex-col justify-between">
+                    <div>
+                        <!-- Card Header: Category Tag + Actions -->
+                        <div class="flex items-center justify-between gap-2">
+                            <div class="inline-flex items-center gap-2">
+                                <span class="w-8 h-8 rounded-xl border ${st.iconColor} flex items-center justify-center">
+                                    <i data-lucide="${cat.icon}" class="w-4 h-4"></i>
+                                </span>
+                                <span class="text-[11px] font-medium uppercase tracking-wider text-slate-400">${cat.label}</span>
+                            </div>
+
+                            <div class="flex items-center gap-1">
+                                <button onclick="quickRenew('${item.id}')" title="Quick Renew (+${item.cycleYears} yr)" class="p-1.5 rounded-lg text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 transition-colors">
+                                    <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
+                                </button>
+                                <button onclick="openEditModal('${item.id}')" title="Edit Item" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors">
+                                    <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                                </button>
+                                <button onclick="deleteItem('${item.id}')" title="Delete Item" class="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors">
+                                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Title & Reference -->
+                        <div class="mt-4">
+                            <h3 class="text-base font-semibold text-slate-100 leading-snug">${escapeHTML(item.title)}</h3>
+                            <div class="mt-1.5 flex items-center gap-2">
+                                <span class="font-mono text-xs px-2 py-0.5 rounded-md bg-obsidian-950 border border-slate-800 text-slate-400">
+                                    ${escapeHTML(item.ref)}
+                                </span>
+                                <span class="text-[11px] font-mono text-slate-500">${item.cycleYears}Y CYCLE</span>
+                            </div>
+                        </div>
+
+                        <!-- Note snippet if present -->
+                        ${item.note ? `<p class="mt-3 text-xs text-slate-400/90 line-clamp-1">${escapeHTML(item.note)}</p>` : ''}
+                    </div>
+
+                    <!-- Footer: Expiry Date, Progress Bar & Countdown Badge -->
+                    <div class="mt-5 pt-4 border-t border-slate-800/80 space-y-3">
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="text-slate-500">Expires</span>
+                            <span class="font-mono font-semibold text-slate-200">${item.formattedDate}</span>
+                        </div>
+
+                        <!-- Sleek Progress Indicator -->
+                        <div>
+                            <div class="w-full h-1.5 rounded-full bg-obsidian-950 overflow-hidden border border-slate-800/60">
+                                <div class="h-full rounded-full ${st.barColor} transition-all duration-500" style="width: ${item.progressPct}%"></div>
+                            </div>
+                        </div>
+
+                        <!-- Countdown Status Badge -->
+                        <div class="flex items-center justify-between pt-0.5">
+                            <span class="text-[10px] font-mono uppercase tracking-wider text-slate-500">${barLabel}</span>
+                            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border font-mono text-[11px] font-semibold tracking-wide ${st.badgeBg}">
+                                <span class="w-1.5 h-1.5 rounded-full ${st.dot}"></span>
+                                ${item.badgeText}
+                            </span>
+                        </div>
+                    </div>
+                </article>
+            `;
+        }
+
+        // Filter & Search Handlers
+        function setFilter(filter) {
+            currentFilter = filter;
+            document.querySelectorAll('.filter-btn').forEach(btn => {
+                if (btn.dataset.filter === filter) {
+                    btn.className = 'filter-btn px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap bg-slate-800 text-slate-100 shadow-sm';
+                } else {
+                    btn.className = 'filter-btn px-3.5 py-1.5 rounded-lg text-xs font-medium transition-all whitespace-nowrap text-slate-400 hover:text-slate-200';
+                }
+            });
+            renderApp();
+        }
+
+        function handleSearch(val) {
+            searchQuery = val;
+            renderApp();
+        }
+
+        function resetFilters() {
+            searchQuery = '';
+            document.getElementById('search-input').value = '';
+            setFilter('all');
+        }
+
+        // Quick Renew: Advances expiry date by the item's cycleYears from TODAY (or current expiry if future)
+        function quickRenew(id) {
+            const idx = items.findIndex(i => i.id === id);
+            if (idx === -1) return;
+
+            const item = items[idx];
+            const currentExp = parseLocalDate(item.expiryDate);
+            const baseDate = currentExp > TODAY ? currentExp : TODAY;
+            const renewedDate = new Date(baseDate.getFullYear() + Number(item.cycleYears || 1), baseDate.getMonth(), baseDate.getDate());
+
+            const yyyy = renewedDate.getFullYear();
+            const mm = String(renewedDate.getMonth() + 1).padStart(2, '0');
+            const dd = String(renewedDate.getDate()).padStart(2, '0');
+
+            items[idx].expiryDate = `${yyyy}-${mm}-${dd}`;
+            saveData();
+            renderApp();
+            showToast(`Renewed "${item.title}" to ${formatDisplayDate(renewedDate)}`);
+        }
+
+        function deleteItem(id) {
+            const item = items.find(i => i.id === id);
+            items = items.filter(i => i.id !== id);
+            saveData();
+            renderApp();
+            if (item) showToast(`Removed "${item.title}"`);
+        }
+
+        // Add / Edit Modal Logic
+        function openAddModal() {
+            document.getElementById('edit-item-id').value = '';
+            document.getElementById('modal-title').textContent = 'Track New Expiry';
+            document.getElementById('modal-submit-btn').textContent = 'Save Tracker';
+            document.getElementById('item-form').reset();
+
+            // Default expiry date to 1 year from reference date
+            document.getElementById('field-expiry').value = '2027-11-12';
+
+            const modal = document.getElementById('item-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            lucide.createIcons();
+        }
+
+        function openEditModal(id) {
+            const item = items.find(i => i.id === id);
+            if (!item) return;
+
+            document.getElementById('edit-item-id').value = item.id;
+            document.getElementById('modal-title').textContent = 'Update Expiry Details';
+            document.getElementById('modal-submit-btn').textContent = 'Update Item';
+
+            document.getElementById('field-title').value = item.title;
+            document.getElementById('field-category').value = item.category;
+            document.getElementById('field-ref').value = item.ref;
+            document.getElementById('field-expiry').value = item.expiryDate;
+            document.getElementById('field-cycle').value = String(item.cycleYears || 5);
+            document.getElementById('field-note').value = item.note || '';
+
+            const modal = document.getElementById('item-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            lucide.createIcons();
+        }
+
+        function closeItemModal() {
+            const modal = document.getElementById('item-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function handleItemSubmit(e) {
+            e.preventDefault();
+            const editId = document.getElementById('edit-item-id').value;
+            const payload = {
+                id: editId || 'item-' + Date.now(),
+                title: document.getElementById('field-title').value.trim(),
+                category: document.getElementById('field-category').value,
+                ref: document.getElementById('field-ref').value.trim(),
+                expiryDate: document.getElementById('field-expiry').value,
+                cycleYears: Number(document.getElementById('field-cycle').value),
+                note: document.getElementById('field-note').value.trim()
+            };
+
+            if (editId) {
+                const idx = items.findIndex(i => i.id === editId);
+                if (idx !== -1) items[idx] = payload;
+                showToast(`Updated "${payload.title}"`);
+            } else {
+                items.push(payload);
+                showToast(`Added "${payload.title}" to VaultExpiry`);
+            }
+
+            saveData();
+            closeItemModal();
+            renderApp();
+        }
+
+        // Status Report Modal Logic
+        function openReportModal() {
+            const evaluated = items.map(evaluateItem).sort((a, b) => a.diffDays - b.diffDays);
+            const critical = evaluated.filter(i => i.status === 'critical');
+            const soon = evaluated.filter(i => i.status === 'soon');
+            const valid = evaluated.filter(i => i.status === 'valid');
+
+            // Visual summary cards inside report
+            document.getElementById('report-visual-summary').innerHTML = `
+                <div class="p-3 rounded-xl bg-rose-500/10 border border-rose-500/25">
+                    <div class="text-[11px] font-mono text-rose-300 uppercase">Critical</div>
+                    <div class="text-xl font-mono font-bold text-rose-400 mt-0.5">${critical.length}</div>
+                </div>
+                <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/25">
+                    <div class="text-[11px] font-mono text-amber-300 uppercase">Expiring Soon</div>
+                    <div class="text-xl font-mono font-bold text-amber-400 mt-0.5">${soon.length}</div>
+                </div>
+                <div class="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/25">
+                    <div class="text-[11px] font-mono text-emerald-300 uppercase">Healthy</div>
+                    <div class="text-xl font-mono font-bold text-emerald-400 mt-0.5">${valid.length}</div>
+                </div>
+            `;
+
+            // Table rows
+            document.getElementById('report-table-body').innerHTML = evaluated.map(item => {
+                const badgeClass = item.status === 'critical'
+                    ? 'text-rose-400 bg-rose-500/10 border-rose-500/25'
+                    : item.status === 'soon'
+                        ? 'text-amber-400 bg-amber-500/10 border-amber-500/25'
+                        : 'text-emerald-400 bg-emerald-500/10 border-emerald-500/25';
+
+                return `
+                    <tr class="hover:bg-slate-800/30">
+                        <td class="py-2.5 px-3.5 font-medium text-slate-200">${escapeHTML(item.title)}</td>
+                        <td class="py-2.5 px-3.5 font-mono text-slate-400">${escapeHTML(item.ref)}</td>
+                        <td class="py-2.5 px-3.5 font-mono text-slate-300">${item.formattedDate}</td>
+                        <td class="py-2.5 px-3.5 text-right">
+                            <span class="inline-block px-2 py-0.5 rounded border font-mono text-[10px] font-semibold ${badgeClass}">
+                                ${item.badgeText}
+                            </span>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            // Plaintext report generation
+            const lines = [
+                `VAULTEXPIRY COMPLIANCE & STATUS REPORT`,
+                `Report Date: 12 Nov 2026 | Total Tracked: ${evaluated.length}`,
+                `Summary: ${critical.length} Critical/Expired | ${soon.length} Expiring Soon | ${valid.length} Valid`,
+                `------------------------------------------------------------`,
+                ...evaluated.map(i => {
+                    const flag = i.status === 'critical' ? '[CRITICAL]' : i.status === 'soon' ? '[SOON]    ' : '[VALID]   ';
+                    return `${flag} ${i.title} (${i.ref}) -> Exp: ${i.formattedDate} (${i.badgeText})`;
+                })
+            ];
+            document.getElementById('report-plaintext').value = lines.join('\n');
+
+            const modal = document.getElementById('report-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            lucide.createIcons();
+        }
+
+        function closeReportModal() {
+            const modal = document.getElementById('report-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function copyAuditReport() {
+            const textarea = document.getElementById('report-plaintext');
+            textarea.select();
+            textarea.setSelectionRange(0, 99999);
+            try {
+                document.execCommand('copy');
+                showToast('Audit report copied to clipboard');
+            } catch (err) {
+                showToast('Unable to copy automatically');
+            }
+        }
+
+        // Toast Feedback
+        let toastTimer;
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-message').textContent = msg;
+            toast.classList.remove('translate-y-16', 'opacity-0');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                toast.classList.add('translate-y-16', 'opacity-0');
+            }, 3000);
+        }
+
+        function escapeHTML(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        // Close modals on Escape key
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeItemModal();
+                closeReportModal();
+            }
+        });
+
+        // Boot application
+        window.onload = function() {
+            initData();
+            renderApp();
+        };
+    </script>
+</body>
+</html>
