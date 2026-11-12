@@ -156,7 +156,7 @@ Without SMTP the app still works: reminder emails aren't sent, a user's "Forgot 
 | Variable | Source | Default | Example | Notes |
 |---|---|---|---|---|
 | `ADMIN_EMAIL` | You | *(empty: no bootstrap)* | `you@yourdomain.co.za` | On boot, creates this admin account **if no account with this email exists** |
-| `ADMIN_PASSWORD` | You | *(empty)* | a 20+ character passphrase | 12–128 characters. Only used to create the account. **Delete this variable after the first successful deploy** (the logs warn while it's still set) |
+| `ADMIN_PASSWORD` | You | *(empty)* | `Adm1n` (minimum) or a 20+ character passphrase (recommended) | 5–128 characters (more than 4). Short passwords are accepted but logged as a warning; change it in Settings after first sign-in (Settings requires 10+). Only used to create the account. **Delete this variable after the first successful deploy** (the logs warn while it's still set) |
 | `ADMIN_NAME` | You | `Platform Admin` | `Stef` | Display name for the new admin |
 
 Booleans accept `true`/`false` (or `1`/`0`). Empty values count as unset.

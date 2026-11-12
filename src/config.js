@@ -28,7 +28,7 @@ const schema = z.object({
   SIGNUP_ENABLED: bool(true),
   TRUST_PROXY: z.coerce.number().int().min(0).default(1),
   ADMIN_EMAIL: z.string().trim().toLowerCase().email('ADMIN_EMAIL must be an email address').optional().or(z.literal('')),
-  ADMIN_PASSWORD: z.string().min(12, 'ADMIN_PASSWORD must be at least 12 characters').max(128).optional().or(z.literal('')),
+  ADMIN_PASSWORD: z.string().min(5, 'ADMIN_PASSWORD must be more than 4 characters').max(128).optional().or(z.literal('')),
   ADMIN_NAME: z.string().trim().min(1).max(80).optional().default('Platform Admin'),
 });
 

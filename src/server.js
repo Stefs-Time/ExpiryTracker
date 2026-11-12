@@ -23,6 +23,9 @@ async function bootstrapAdmin() {
       return;
     }
     if (action !== 'unchanged') logger.info('Platform admin bootstrap', { email, action });
+    if (action === 'created' && password.length < 12) {
+      logger.warn('Platform admin created with a short password (< 12 characters). Change it in Settings after first sign-in.');
+    }
     if (password && action === 'unchanged') {
       logger.warn('ADMIN_PASSWORD is still set but the admin already exists; remove it from the environment');
     }

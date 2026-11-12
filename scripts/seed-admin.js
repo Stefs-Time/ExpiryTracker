@@ -46,7 +46,7 @@ function promptHidden(question) {
 async function getPassword() {
   if (process.env.ADMIN_PASSWORD) return process.env.ADMIN_PASSWORD;
   if (!process.stdin.isTTY) throw new Error('No TTY: set ADMIN_PASSWORD in the environment');
-  const a = await promptHidden('New admin password (min 12 chars): ');
+  const a = await promptHidden('New admin password (min 5 chars, 12+ recommended): ');
   const b = await promptHidden('Repeat password: ');
   if (a !== b) throw new Error('Passwords do not match');
   return a;
@@ -61,8 +61,11 @@ try {
     const { rows } = await pool.query('SELECT 1 FROM users WHERE email = $1', [email]);
     const needsPassword = !rows.length || values['reset-password'];
     const password = needsPassword ? await getPassword() : undefined;
-    if (password !== undefined && (password.length < 12 || password.length > 128)) {
-      throw new Error('Admin password must be 12–128 characters');
+    if (password !== undefined && (password.length < 5 || password.length > 128)) {
+      throw new Error('Admin password must be 5–128 characters');
+    }
+    if (password !== undefined && password.length < 12) {
+      console.warn('Warning: short admin password (< 12 characters). Change it in Settings after first sign-in.');
     }
     const { action } = await seedAdmin({
       email,
