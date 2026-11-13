@@ -135,24 +135,31 @@ Admin user object:
 ```json
 {
   "id": "uuid", "email": "bob@example.com", "displayName": "Bob", "role": "user",
-  "status": "active | locked | disabled", "createdAt": "…", "lastLoginAt": "…", "disabledAt": null,
+  "status": "active | locked | invited | disabled", "createdAt": "…", "lastLoginAt": "…", "invitedAt": null, "disabledAt": null,
   "lockedUntil": null, "failedLogins": 0, "emailReminders": true, "timezone": "Africa/Johannesburg",
-  "itemCount": 6, "activeSessions": 2
+  "itemCount": 6, "photoCount": 2, "activeSessions": 2, "noteCount": 1
 }
 ```
 
 | Method | Path | Body / query | Result |
 |---|---|---|---|
-| GET | `/stats` | – | `{ users, admins, disabled, newLast30Days, activeLast30Days, items, remindersLast30Days, mailConfigured }` |
-| GET | `/users` | `q` (name/email), `status` (`active`/`locked`/`disabled`), `role` (`user`/`admin`), `sort` (`created`, `-created`, `email`, `lastLogin`), `page`, `limit` (1–200, default 50) | Admin user objects + pagination `meta` |
+| GET | `/stats` | – | `{ users, admins, disabled, locked, invited, newLast30Days, activeLast30Days, items, remindersLast30Days, mailConfigured }` |
+| GET | `/system` | – | `{ version, environment, node, uptimeSeconds, database: { ok, latencyMs }, features: { signupEnabled, mailConfigured, remindersRunning, attachmentsEnabled, scanEnabled, scanModel }, jobs: { reminders, maintenance }, photoStorage: { photos, bytes }, warnings: [] }`. Flags and counts only, never secrets |
+| GET | `/users` | `q` (name/email), `status` (`active`/`locked`/`invited`/`disabled`), `role` (`user`/`admin`), `sort` (`created`, `email`, `name`, `lastLogin`, each with a `-` prefix to reverse), `page`, `limit` (1–200, default 50) | Admin user objects + pagination `meta` |
+| GET | `/users.csv` | Same filters and sort (no paging) | CSV download, up to 5,000 rows |
+| POST | `/users` | `{ email, displayName }` | **Invite.** 201 `{ user, emailed }`; without SMTP also `{ link, expiresInHours: 72 }`. 409 if the email exists |
+| GET | `/users/:id/detail` | – | `{ user, notes: [{ id, adminEmail, body, createdAt }], activity: [audit entries] }` |
+| POST | `/users/:id/notes` | `{ body }` (1–1000 chars) | 201 with the note |
+| DELETE | `/users/:id/notes/:noteId` | – | 204 |
 | GET | `/users/:id` | – | Admin user object |
 | POST | `/users/:id/password-reset` | – | With SMTP: emails the user, returns `{ emailed: true }`. Without SMTP: `{ emailed: false, link, expiresInMinutes: 60 }`. 409 if the account is disabled |
 | POST | `/users/:id/unlock` | – | Clears failed-login lockout |
 | POST | `/users/:id/sign-out` | – | Revokes all of the user's sessions |
-| POST | `/users/:id/disable` | – | Blocks sign-in, sessions, reminders, calendar feed and resets. 403 on yourself, 409 if already disabled |
+| POST | `/users/:id/disable` | `{ reason? }` (≤ 300 chars, internal) | Emails the user when SMTP is configured. Blocks sign-in, sessions, reminders, calendar feed and resets. 403 on yourself, 409 if already disabled |
 | POST | `/users/:id/enable` | – | 409 if not disabled |
-| DELETE | `/users/:id` | `{ confirmEmail }` (must match the user's email) | 204. 403 on yourself or another admin |
-| GET | `/audit` | `page`, `limit`, `userId?` | `[{ id, adminEmail, action, targetUserId, targetEmail, ip, createdAt }]`, newest first |
+| DELETE | `/users/:id` | `{ confirmEmail, reason? }` (`confirmEmail` must match the user's email) | 204. 403 on yourself or another admin |
+| GET | `/audit` | `page`, `limit`, `userId?`, `action?`, `q?` (user, admin or reason) | `[{ id, adminEmail, action, targetUserId, targetEmail, reason, ip, createdAt }]`, newest first, + pagination `meta` |
+| GET | `/audit.csv` | Same filters (no paging) | CSV download, up to 5,000 rows |
 
 Role changes are not available over HTTP. Use `npm run admin:seed` (see README).
 

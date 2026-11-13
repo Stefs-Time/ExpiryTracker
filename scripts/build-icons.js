@@ -18,6 +18,7 @@ const ICONS = [
   'eye', 'eye-off', 'history', 'wifi-off', 'refresh-cw', 'arrow-left', 'printer', 'link', 'file-spreadsheet',
   'calendar-sync', 'upload', 'users', 'user-x', 'user-check', 'key-round', 'lock-open', 'shield-user',
   'scroll-text', 'chevron-left', 'chevron-right', 'camera', 'image', 'sparkles', 'loader-circle',
+  'user-plus', 'activity', 'circle-minus',
 ];
 
 const symbols = [];

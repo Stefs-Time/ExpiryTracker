@@ -178,6 +178,7 @@ export async function consumePasswordReset(token, newPassword) {
     if (!rows[0]) throw new AppError(400, 'INVALID_TOKEN', 'This reset link is invalid or has expired');
     await client.query('UPDATE password_resets SET used_at = now() WHERE id = $1', [rows[0].id]);
     await setPassword(rows[0].user_id, newPassword, client);
+    await client.query('UPDATE users SET last_login_at = now() WHERE id = $1', [rows[0].user_id]);
     return rows[0].user_id;
   });
 }

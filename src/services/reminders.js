@@ -123,6 +123,9 @@ export async function runReminderPass(now = new Date()) {
   return { skipped: false, sent };
 }
 
+/** In-memory state of the scheduler on this instance (shown in the admin system-status panel). */
+export const reminderJob = { running: false, lastRunAt: null, lastSent: 0, lastError: null };
+
 let timer;
 export function startReminderScheduler() {
   if (!config.remindersEnabled) return;
@@ -130,10 +133,17 @@ export function startReminderScheduler() {
     logger.warn('Reminder scheduler not started: SMTP is not configured');
     return;
   }
+  reminderJob.running = true;
   const tick = () =>
     runReminderPass()
-      .then((r) => r.sent && logger.info('Reminder pass complete', r))
-      .catch((err) => logger.error('Reminder pass failed', { err: err.message }));
+      .then((r) => {
+        Object.assign(reminderJob, { lastRunAt: new Date(), lastSent: r.sent, lastError: null });
+        if (r.sent) logger.info('Reminder pass complete', r);
+      })
+      .catch((err) => {
+        Object.assign(reminderJob, { lastRunAt: new Date(), lastError: err.message });
+        logger.error('Reminder pass failed', { err: err.message });
+      });
   timer = setInterval(tick, INTERVAL_MS);
   timer.unref();
   setTimeout(tick, 30_000).unref(); // first pass shortly after boot

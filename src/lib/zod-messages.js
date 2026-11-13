@@ -27,6 +27,12 @@ const LABELS = {
   confirmEmail: 'Confirmation email',
   items: 'Import file',
   q: 'Search',
+  body: 'Note',
+  reason: 'Reason',
+  action: 'Action',
+  status: 'Status',
+  role: 'Role',
+  sort: 'Sort order',
   page: 'Page',
   limit: 'Page size',
 };

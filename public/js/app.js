@@ -124,7 +124,7 @@ async function route() {
     form.querySelector('input')?.focus();
   } else if (path === 'admin') {
     document.title = 'Admin console · VaultExpiry';
-    await showAdmin(user);
+    await showAdmin(user, params);
   } else if (path === 'settings') {
     document.title = 'Settings · VaultExpiry';
     await showSettings();

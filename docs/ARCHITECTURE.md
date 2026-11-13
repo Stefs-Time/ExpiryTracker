@@ -35,7 +35,8 @@ Browser (PWA) ──HTTPS──► Railway edge ──► Express (helmet, acces
 | `reminder_log` | `(item_id, expiry_date, stage)` primary key, so each reminder stage is sent at most once per expiry date. Renewing creates a new expiry date and re-arms the stages |
 | `session` | connect-pg-simple session store |
 | `item_attachments` | Document photos: AES-256-GCM ciphertext + IV + auth tag + metadata (`key_version` for future rotation). The row id is bound as AAD, so ciphertext can't be swapped between rows. Cascades with item and user |
-| `admin_audit` | Append-only log of admin actions. Keeps the target's email, so entries survive account deletion |
+| `admin_audit` | Append-only log of admin actions, with an optional internal reason. Keeps the target's email, so entries survive account deletion |
+| `admin_notes` | Internal support notes about an account (author, text, time). Never exposed to the user; cascade with the account |
 
 CHECK constraints mirror the zod validation (lengths, enum, ranges, `warning_days > critical_days`, lowercase email), so bad data can't get in through any code path. Migrations are plain SQL files applied in order, inside transactions, under an advisory lock.
 
@@ -76,6 +77,10 @@ CHECK constraints mirror the zod validation (lengths, enum, ranges, `warning_day
 - **Disable** sets `disabled_at`. Login, session validation, password reset, the calendar feed and reminders all check it, and sessions are revoked at once. A disabled status is only revealed after a correct password.
 - **Escalation controls:** promotion is CLI-only (`npm run admin:seed`). The boot-time bootstrap only creates a missing account and never promotes an existing one, which blocks squatting on `ADMIN_EMAIL` via public sign-up. Admins can't disable or delete themselves or delete other admins. Demotion refuses to remove the last active admin, with row locks preventing concurrent races.
 - **Audit:** every mutating admin action and its audit row are written in the same transaction.
+- **Invites** create the account with a random, unusable password and a hashed set-password token (72 hours). The admin never learns a password, and with SMTP never sees the link.
+- **Support notes and reasons** are internal: no user-facing endpoint returns them, and notification emails never include a reason.
+- **System status** exposes configuration flags, job times and counts only. Tests assert that no secret (session secret, encryption key, API key, database URL) appears in it.
+- **CSV exports** are admin-only, capped at 5,000 rows, and formula-injection safe.
 
 ### Request handling and observability
 

@@ -4,6 +4,16 @@ All notable changes, newest first. Dates are release dates on the development br
 
 ## Unreleased
 
+### Added
+- **Back-office tools in the admin console:**
+  - User detail panel with labelled actions, per-account activity and internal support notes.
+  - **Invite user** (the user sets their own password; works with sign-up closed).
+  - Clickable status tiles, sortable columns, bookmarkable filters and a `/` search shortcut.
+  - Audit log search, action filter, paging and optional **reasons** on disable/delete.
+  - CSV export of users and of the audit log.
+  - **System status** panel with configuration warnings.
+  - Email notifications to users when an admin disables, re-enables or deletes their account.
+
 ### Changed
 - **Repository audit and tidy-up:**
   - Added ESLint (flat config) to CI.

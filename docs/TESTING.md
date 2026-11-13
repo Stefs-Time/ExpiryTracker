@@ -39,12 +39,14 @@ No real email, SMTP or Groq access is needed:
 | `api.test.js` | Auth (sign-up, login, lockout, enumeration, reset), CSRF/origin/content-type, per-user isolation, validation, filters, renew/history, import, reports (CSV injection, ICS folding), calendar tokens, settings, password change, export/delete, reminder de-duplication |
 | `admin.test.js` | Admin access control, the privacy boundary (no item contents or secrets leak), every admin action, audit log, self-protection, seeding rules |
 | `media.test.js` | JPEG sanitising (EXIF/GPS stripped), scan normalising and masking, consent, Groq request shape, provider errors, encryption at rest, owner-only photo access, limits, export |
+| `backoffice.test.js` | Invites (email and completion), support notes, audit reasons/filters/paging, user notifications, CSV exports, sorting, system status without secrets |
 | `robustness.test.js` | Soft delete/restore/purge, reminders skipping deleted items, reminder retry after a mail failure, provider network failure, malformed/oversized bodies, request IDs, JPEG edge cases |
 
 **End-to-end (`e2e/app.e2e.js`):**
 - **Core journeys:** sign-up, add, edit, renew, delete + undo, filters, report copy, CSV.
 - **Photo scanning:** consent, prefill, decline, missing date, provider error.
 - **Photos and admin:** photo save, view and delete; admin access and redirects.
+- **Back office:** invite, tile filter and URL state, detail panel, support note, disable with a reason, audit filter, bookmarked URL.
 - **Quality checks:**
   - **zero axe-core WCAG 2.2 AA violations** on six screens in light and dark themes;
   - no horizontal overflow at 320/375/768 px;

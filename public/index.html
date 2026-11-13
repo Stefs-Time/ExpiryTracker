@@ -218,68 +218,119 @@
             <a class="icon-btn" href="#/" aria-label="Back to dashboard"><svg class="icon" aria-hidden="true"><use href="/icons.svg#i-arrow-left"/></svg></a>
             <h1>Admin console</h1>
             <span class="chip">PLATFORM ADMIN</span>
+            <span class="page-actions">
+              <button type="button" class="btn btn-primary" data-admin-action="invite">
+                <svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-user-plus"/></svg>Invite user
+              </button>
+            </span>
           </div>
           <p class="privacy-note">
             <svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-lock"/></svg>
-            You can manage accounts, but you can't see what anyone tracks: no titles, references, notes or dates. Every action is logged.
+            You can manage accounts, but you can't see what anyone tracks: no titles, references, notes, dates or photos. Every action is logged.
           </p>
         </div>
 
-        <section class="kpis" aria-label="Platform statistics">
-          <div class="kpi"><span class="kpi-top">Users<span class="kpi-icon"><svg class="icon" aria-hidden="true"><use href="/icons.svg#i-users"/></svg></span></span>
-            <span class="kpi-value"><strong id="as-users">–</strong><span id="as-new">new (30d)</span></span></div>
-          <div class="kpi valid"><span class="kpi-top">Active (30 days)<span class="kpi-icon"><svg class="icon" aria-hidden="true"><use href="/icons.svg#i-user-check"/></svg></span></span>
-            <span class="kpi-value"><strong id="as-active">–</strong><span>signed in</span></span></div>
-          <div class="kpi"><span class="kpi-top">Items tracked<span class="kpi-icon"><svg class="icon" aria-hidden="true"><use href="/icons.svg#i-layers"/></svg></span></span>
-            <span class="kpi-value"><strong id="as-items">–</strong><span id="as-reminders">reminders (30d)</span></span></div>
-          <div class="kpi critical"><span class="kpi-top">Disabled<span class="kpi-icon"><svg class="icon" aria-hidden="true"><use href="/icons.svg#i-user-x"/></svg></span></span>
-            <span class="kpi-value"><strong id="as-disabled">–</strong><span>accounts</span></span></div>
+        <section class="kpis" aria-label="Accounts by status (select to filter)">
+          <button type="button" class="kpi" data-admin-filter="" aria-pressed="true">
+            <span class="kpi-top">All users<span class="kpi-icon"><svg class="icon" aria-hidden="true"><use href="/icons.svg#i-users"/></svg></span></span>
+            <span class="kpi-value"><strong id="as-users">–</strong><span id="as-new">new (30d)</span></span>
+          </button>
+          <button type="button" class="kpi soon" data-admin-filter="locked" aria-pressed="false">
+            <span class="kpi-top">Locked out<span class="kpi-icon"><svg class="icon" aria-hidden="true"><use href="/icons.svg#i-lock"/></svg></span></span>
+            <span class="kpi-value"><strong id="as-locked">–</strong><span>need unlocking</span></span>
+          </button>
+          <button type="button" class="kpi" data-admin-filter="invited" aria-pressed="false">
+            <span class="kpi-top">Pending invites<span class="kpi-icon"><svg class="icon" aria-hidden="true"><use href="/icons.svg#i-mail"/></svg></span></span>
+            <span class="kpi-value"><strong id="as-invited">–</strong><span>not signed in yet</span></span>
+          </button>
+          <button type="button" class="kpi critical" data-admin-filter="disabled" aria-pressed="false">
+            <span class="kpi-top">Disabled<span class="kpi-icon"><svg class="icon" aria-hidden="true"><use href="/icons.svg#i-user-x"/></svg></span></span>
+            <span class="kpi-value"><strong id="as-disabled">–</strong><span>accounts</span></span>
+          </button>
         </section>
-        <p class="form-error" id="admin-mail-warning" hidden>
-          Email (SMTP) isn't configured, so password resets give you a one-time link to send the user yourself. Use a trusted channel.
-        </p>
 
         <section class="toolbar" aria-label="User filters">
           <div class="toolbar-right">
             <label class="search">
-              <span class="sr-only">Search users</span>
+              <span class="sr-only">Search users (shortcut: /)</span>
               <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-search"/></svg>
-              <input class="input" type="search" id="admin-search" placeholder="Search name or email…" autocomplete="off">
+              <input class="input" type="search" id="admin-search" placeholder="Search name or email…  ( / )" autocomplete="off">
             </label>
           </div>
-          <div class="toolbar-right">
+          <div class="toolbar-right toolbar-wrap">
             <label><span class="sr-only">Status</span>
               <select class="select select-compact" id="admin-status">
-                <option value="">All statuses</option><option value="active">Active</option><option value="locked">Locked</option><option value="disabled">Disabled</option>
+                <option value="">All statuses</option><option value="active">Active</option><option value="locked">Locked</option>
+                <option value="invited">Invited</option><option value="disabled">Disabled</option>
               </select></label>
             <label><span class="sr-only">Role</span>
               <select class="select select-compact" id="admin-role">
                 <option value="">All roles</option><option value="user">Users</option><option value="admin">Admins</option>
               </select></label>
+            <button type="button" class="btn btn-ghost" id="admin-clear" hidden>Clear filters</button>
+            <a class="btn" id="admin-users-csv" href="/api/admin/users.csv" download>
+              <svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-file-spreadsheet"/></svg>Export CSV
+            </a>
           </div>
         </section>
 
-        <div class="table-wrap admin-table" aria-live="polite">
-          <table>
-            <thead><tr>
-              <th scope="col">User</th><th scope="col">Status</th><th scope="col" class="num">Items</th>
-              <th scope="col">Last sign-in</th><th scope="col">Joined</th><th scope="col" class="num">Actions</th>
-            </tr></thead>
-            <tbody id="admin-users"></tbody>
-          </table>
-        </div>
-        <div class="pager">
-          <span class="faint" id="admin-page-info"></span>
-          <span>
-            <button type="button" class="btn btn-sm" data-admin-page="-1" aria-label="Previous page"><svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-chevron-left"/></svg></button>
-            <button type="button" class="btn btn-sm" data-admin-page="1" aria-label="Next page"><svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-chevron-right"/></svg></button>
-          </span>
+        <div>
+          <div class="table-wrap admin-table" aria-live="polite">
+            <table>
+              <thead><tr>
+                <th scope="col"><button type="button" class="th-sort" data-admin-sort="name">User</button></th>
+                <th scope="col">Status</th>
+                <th scope="col" class="num">Items</th>
+                <th scope="col"><button type="button" class="th-sort" data-admin-sort="lastLogin">Last sign-in</button></th>
+                <th scope="col"><button type="button" class="th-sort" data-admin-sort="created">Joined</button></th>
+                <th scope="col" class="num">Actions</th>
+              </tr></thead>
+              <tbody id="admin-users"></tbody>
+            </table>
+          </div>
+          <div class="pager">
+            <span class="faint" id="admin-page-info"></span>
+            <span>
+              <button type="button" class="btn btn-sm" data-admin-page="-1" aria-label="Previous page"><svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-chevron-left"/></svg></button>
+              <button type="button" class="btn btn-sm" data-admin-page="1" aria-label="Next page"><svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-chevron-right"/></svg></button>
+            </span>
+          </div>
         </div>
 
-        <section class="panel">
-          <h2><svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-scroll-text"/></svg> Audit log</h2>
-          <p class="muted">The 50 most recent admin actions.</p>
-          <ul class="history" id="admin-audit"></ul>
+        <section class="panel" aria-labelledby="admin-audit-title">
+          <div class="panel-head">
+            <h2 id="admin-audit-title"><svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-scroll-text"/></svg> Audit log</h2>
+            <a class="btn btn-sm" id="admin-audit-csv" href="/api/admin/audit.csv" download>
+              <svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-file-spreadsheet"/></svg>Export CSV
+            </a>
+          </div>
+          <div class="toolbar-right toolbar-wrap audit-filters">
+            <label class="search">
+              <span class="sr-only">Search the audit log</span>
+              <svg class="icon" aria-hidden="true"><use href="/icons.svg#i-search"/></svg>
+              <input class="input" type="search" id="audit-search" placeholder="Search user, admin or reason…" autocomplete="off">
+            </label>
+            <label><span class="sr-only">Action</span>
+              <select class="select select-compact" id="audit-action"><option value="">All actions</option></select></label>
+          </div>
+          <ul class="history" id="admin-audit" aria-live="polite"></ul>
+          <div class="pager">
+            <span class="faint" id="audit-page-info"></span>
+            <span>
+              <button type="button" class="btn btn-sm" data-audit-page="-1" aria-label="Previous audit page"><svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-chevron-left"/></svg></button>
+              <button type="button" class="btn btn-sm" data-audit-page="1" aria-label="Next audit page"><svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-chevron-right"/></svg></button>
+            </span>
+          </div>
+        </section>
+
+        <section class="panel" aria-labelledby="admin-system-title">
+          <div class="panel-head">
+            <h2 id="admin-system-title"><svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-activity"/></svg> System status</h2>
+            <span class="faint mono" id="sys-meta"></span>
+          </div>
+          <ul class="sys-warnings" id="sys-warnings"></ul>
+          <ul class="sys-grid" id="sys-checks"></ul>
+          <dl class="facts" id="sys-numbers"></dl>
         </section>
       </div>
     </section>
@@ -522,7 +573,7 @@
     </div>
   </dialog>
 
-  <!-- ================= ADMIN: RESET LINK ================= -->
+  <!-- ================= ADMIN: ONE-TIME LINK (reset / invite without SMTP) ================= -->
   <dialog id="reset-link-dialog" aria-labelledby="reset-link-title">
     <div class="dialog-shell">
       <div class="dialog-head">
@@ -533,11 +584,99 @@
         <button type="button" class="icon-btn" data-close aria-label="Close"><svg class="icon" aria-hidden="true"><use href="/icons.svg#i-x"/></svg></button>
       </div>
       <div class="dialog-body">
-        <p class="muted">Email isn't configured, so send this link to the user yourself, through a channel you trust. It works once and expires in 60 minutes. Anyone holding it can take over the account.</p>
-        <div class="feed-url"><input class="input" id="reset-link-url" readonly aria-label="Reset link"><button type="button" class="btn" data-action="copy-reset-link"><svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-copy"/></svg>Copy</button></div>
+        <p class="muted" id="reset-link-text"></p>
+        <div class="feed-url"><input class="input" id="reset-link-url" readonly aria-label="One-time link"><button type="button" class="btn" data-action="copy-reset-link"><svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-copy"/></svg>Copy</button></div>
       </div>
       <div class="dialog-foot"><button type="button" class="btn" data-close>Done</button></div>
     </div>
+  </dialog>
+
+  <!-- ================= ADMIN: USER DETAIL ================= -->
+  <dialog id="admin-user-dialog" class="wide" aria-labelledby="au-name">
+    <div class="dialog-shell">
+      <div class="dialog-head">
+        <div class="dialog-title">
+          <span class="avatar" id="au-avatar" aria-hidden="true">?</span>
+          <div class="au-ident">
+            <h2 id="au-name"></h2>
+            <p><span id="au-email"></span>
+              <button type="button" class="icon-btn icon-btn-xs" data-admin-action="copy-email" aria-label="Copy email address" title="Copy email address"><svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-copy"/></svg></button></p>
+          </div>
+        </div>
+        <button type="button" class="icon-btn" data-close aria-label="Close"><svg class="icon" aria-hidden="true"><use href="/icons.svg#i-x"/></svg></button>
+      </div>
+      <div class="dialog-body" id="au-body">
+        <dl class="facts" id="au-facts"></dl>
+
+        <h3 class="section-title">Actions</h3>
+        <div class="action-list" id="au-actions"></div>
+
+        <h3 class="section-title">Support notes <span class="faint">(internal — the user never sees these)</span></h3>
+        <form id="au-note-form" class="note-form" novalidate>
+          <div class="form-error" role="alert" hidden></div>
+          <label class="sr-only" for="au-note">Add a support note</label>
+          <textarea class="input textarea" id="au-note" name="body" rows="2" maxlength="1000" placeholder="e.g. Phoned on 14 Nov, couldn't receive reset email — checked spam folder with them."></textarea>
+          <button type="submit" class="btn btn-sm">Add note</button>
+        </form>
+        <ul class="history" id="au-notes"></ul>
+
+        <h3 class="section-title">Admin activity on this account</h3>
+        <ul class="history" id="au-activity"></ul>
+      </div>
+      <div class="dialog-foot">
+        <span class="spacer">Item contents and photos are never shown to admins</span>
+        <button type="button" class="btn" data-close>Done</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- ================= ADMIN: INVITE USER ================= -->
+  <dialog id="admin-invite-dialog" aria-labelledby="admin-invite-title">
+    <form method="dialog" id="admin-invite-form" class="dialog-shell" novalidate>
+      <div class="dialog-head">
+        <div class="dialog-title">
+          <span class="title-icon"><svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-user-plus"/></svg></span>
+          <h2 id="admin-invite-title">Invite a user</h2>
+        </div>
+        <button type="button" class="icon-btn" data-close aria-label="Close"><svg class="icon" aria-hidden="true"><use href="/icons.svg#i-x"/></svg></button>
+      </div>
+      <div class="dialog-body">
+        <div class="form-error" role="alert" hidden></div>
+        <p class="muted" id="admin-invite-text"></p>
+        <label class="field"><span class="label">Name</span>
+          <input class="input" name="displayName" required maxlength="80" autocomplete="off"></label>
+        <label class="field"><span class="label">Email</span>
+          <input class="input" type="email" name="email" required maxlength="254" autocomplete="off" inputmode="email"></label>
+      </div>
+      <div class="dialog-foot">
+        <button type="button" class="btn btn-ghost" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Send invite</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- ================= ADMIN: DISABLE WITH REASON ================= -->
+  <dialog id="admin-disable-dialog" aria-labelledby="admin-disable-title">
+    <form method="dialog" id="admin-disable-form" class="dialog-shell" novalidate>
+      <div class="dialog-head">
+        <div class="dialog-title">
+          <span class="title-icon red"><svg class="icon icon-sm" aria-hidden="true"><use href="/icons.svg#i-user-x"/></svg></span>
+          <h2 id="admin-disable-title">Disable account?</h2>
+        </div>
+        <button type="button" class="icon-btn" data-close aria-label="Close"><svg class="icon" aria-hidden="true"><use href="/icons.svg#i-x"/></svg></button>
+      </div>
+      <div class="dialog-body">
+        <div class="form-error" role="alert" hidden></div>
+        <input type="hidden" name="id">
+        <p class="muted" id="admin-disable-text"></p>
+        <label class="field"><span class="label">Reason <span class="faint">(optional, internal — saved in the audit log)</span></span>
+          <textarea class="input textarea" name="reason" rows="2" maxlength="300" placeholder="e.g. Requested by the account owner"></textarea></label>
+      </div>
+      <div class="dialog-foot">
+        <button type="button" class="btn btn-ghost" data-close>Cancel</button>
+        <button type="submit" class="btn btn-danger">Disable account</button>
+      </div>
+    </form>
   </dialog>
 
   <!-- ================= ADMIN: DELETE USER ================= -->
@@ -553,9 +692,11 @@
       <div class="dialog-body">
         <div class="form-error" role="alert" hidden></div>
         <input type="hidden" name="id">
-        <p class="muted">This permanently deletes the account and every item in it. It can't be undone. Consider disabling the account instead.</p>
+        <p class="muted">This permanently deletes the account and every item and photo in it. It can't be undone. Consider disabling the account instead.</p>
         <label class="field"><span class="label">Type <strong class="mono" id="admin-delete-email"></strong> to confirm</span>
           <input class="input mono" name="confirmEmail" autocomplete="off" required></label>
+        <label class="field"><span class="label">Reason <span class="faint">(optional, internal — saved in the audit log)</span></span>
+          <textarea class="input textarea" name="reason" rows="2" maxlength="300" placeholder="e.g. Deletion requested by email on 14 Nov"></textarea></label>
       </div>
       <div class="dialog-foot">
         <button type="button" class="btn btn-ghost" data-close>Cancel</button>

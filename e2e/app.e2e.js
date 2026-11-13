@@ -154,6 +154,60 @@ describe('admin', () => {
   });
 });
 
+describe('back office', () => {
+  test('invite → user sets password; detail panel, note, disable with reason, audit filter, bookmarked URL', async () => {
+    const p = await newPage({ bypassCSP: true });
+    await signIn(p, 'admin@e2e.test', 'admin-password-e2e');
+    await p.goto(`${BASE}/#/admin`);
+    await p.waitForSelector('#admin-users tr');
+    await p.waitForSelector('#sys-checks li');
+
+    // Invite (tests run with email captured, so no link is shown to the admin).
+    const email = `invitee${Date.now()}@example.com`;
+    await p.click('[data-admin-action=invite]');
+    await p.click('#admin-invite-form [type=submit]');
+    assert.match(await p.textContent('#admin-invite-form .form-error'), /Name is required/);
+    await p.fill('#admin-invite-form [name=displayName]', 'Invited Person');
+    await p.fill('#admin-invite-form [name=email]', email);
+    await p.click('#admin-invite-form [type=submit]');
+    await p.waitForSelector('#admin-invite-dialog', { state: 'hidden' });
+    await p.waitForFunction(() => document.querySelector('#as-invited').textContent === '1');
+
+    // Tile filter + URL state, then open the detail panel.
+    await p.click('[data-admin-filter="invited"]');
+    await p.waitForFunction(() => location.hash.includes('status=invited'));
+    await p.waitForFunction(() => document.querySelectorAll('#admin-users .who-btn').length === 1);
+    await p.click('#admin-users .who-btn');
+    await p.waitForSelector('#admin-user-dialog[open]');
+    assert.match(await p.textContent('#au-facts'), /invited/);
+    assert.deepEqual(await axe(p), [], 'detail panel is accessible');
+
+    // Support note.
+    await p.fill('#au-note', 'Onboarding call booked.');
+    await p.click('#au-note-form [type=submit]');
+    await p.waitForFunction(() => document.querySelector('#au-notes').textContent.includes('Onboarding call booked.'));
+
+    // Disable with a reason; activity shows it.
+    await p.click('#au-actions [data-admin-action=disable]');
+    await p.fill('#admin-disable-form [name=reason]', 'Duplicate account');
+    await p.click('#admin-disable-form [type=submit]');
+    await p.waitForFunction(() => document.querySelector('#au-activity').textContent.includes('Reason: Duplicate account'));
+    await p.click('#admin-user-dialog .dialog-foot [data-close]');
+
+    // Audit filter by action.
+    await p.selectOption('#audit-action', 'disable');
+    await p.waitForFunction(() => document.querySelectorAll('#admin-audit li').length === 1);
+    assert.match(await p.textContent('#admin-audit'), /Duplicate account/);
+
+    // A bookmarked URL restores the filters.
+    await p.goto(`${BASE}/#/admin?status=disabled&sort=name`);
+    await p.waitForFunction(() => document.querySelector('#admin-status').value === 'disabled');
+    await p.waitForFunction(() => document.querySelectorAll('#admin-users .badge.disabled').length === 1);
+    assert.deepEqual(p.errors, []);
+    await p.context().close();
+  });
+});
+
 describe('accessibility, responsiveness, keyboard', () => {
   for (const colorScheme of ['light', 'dark']) {
     test(`axe: no WCAG 2.2 AA violations on key screens (${colorScheme})`, async () => {

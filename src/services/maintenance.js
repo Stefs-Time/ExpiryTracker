@@ -10,6 +10,8 @@ import { purgeDeletedItems } from './items.js';
 
 const INTERVAL_MS = 10 * 60 * 1000;
 let timer;
+/** In-memory state on this instance (shown in the admin system-status panel). */
+export const maintenanceJob = { lastRunAt: null, lastError: null };
 
 export async function runMaintenance() {
   const items = await purgeDeletedItems();
@@ -21,7 +23,13 @@ export async function runMaintenance() {
 }
 
 export function startMaintenance() {
-  const tick = () => runMaintenance().catch((err) => logger.error('Maintenance failed', { err: err.message }));
+  const tick = () =>
+    runMaintenance()
+      .then(() => Object.assign(maintenanceJob, { lastRunAt: new Date(), lastError: null }))
+      .catch((err) => {
+        Object.assign(maintenanceJob, { lastRunAt: new Date(), lastError: err.message });
+        logger.error('Maintenance failed', { err: err.message });
+      });
   timer = setInterval(tick, INTERVAL_MS);
   timer.unref();
   setTimeout(tick, 5_000).unref();

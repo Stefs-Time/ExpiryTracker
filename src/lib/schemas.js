@@ -109,14 +109,34 @@ const pagination = {
   limit: z.coerce.number().int().min(1).max(200).optional().default(50),
 };
 
-export const adminUserListSchema = z.object({
+export const adminUserFilterSchema = z.object({
   q: z.string().trim().max(100).optional(),
-  status: z.enum(['active', 'locked', 'disabled']).optional(),
+  status: z.enum(['active', 'locked', 'disabled', 'invited']).optional(),
   role: z.enum(['user', 'admin']).optional(),
-  sort: z.enum(['created', '-created', 'email', 'lastLogin']).optional().default('created'),
-  ...pagination,
+  sort: z.enum(['created', '-created', 'email', '-email', 'name', '-name', 'lastLogin', '-lastLogin']).optional().default('created'),
 });
 
-export const adminAuditSchema = z.object({ ...pagination, userId: uuid.optional() });
+export const adminUserListSchema = adminUserFilterSchema.extend(pagination);
 
-export const adminDeleteSchema = z.object({ confirmEmail: z.string().trim().toLowerCase().max(254) }).strict();
+const auditAction = z.enum([
+  'password_reset_email', 'password_reset_link', 'unlock', 'revoke_sessions',
+  'disable', 'enable', 'delete_user', 'invite_email', 'invite_link',
+]);
+
+export const adminAuditFilterSchema = z.object({
+  userId: uuid.optional(),
+  action: auditAction.optional(),
+  q: z.string().trim().max(100).optional(),
+});
+
+export const adminAuditSchema = adminAuditFilterSchema.extend(pagination);
+
+const reason = z.string().trim().max(300).optional();
+
+export const adminReasonSchema = z.object({ reason }).strict();
+
+export const adminDeleteSchema = z.object({ confirmEmail: z.string().trim().toLowerCase().max(254), reason }).strict();
+
+export const adminInviteSchema = z.object({ email, displayName: trimmed(80).min(1, 'Name is required') }).strict();
+
+export const adminNoteSchema = z.object({ body: trimmed(1000).min(1, 'Write a note first') }).strict();

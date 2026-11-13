@@ -39,7 +39,7 @@ let browser;
 
 export async function startStack() {
   await migrate();
-  await pool.query('TRUNCATE users, items, item_renewals, password_resets, reminder_log, session, admin_audit, item_attachments CASCADE');
+  await pool.query('TRUNCATE users, items, item_renewals, password_resets, reminder_log, session, admin_audit, admin_notes, item_attachments CASCADE');
   await seedAdmin({ email: 'admin@e2e.test', password: 'admin-password-e2e', displayName: 'E2E Admin' });
   await new Promise((r) => mockServer.listen(GROQ_PORT, '127.0.0.1', r));
   server = spawn(process.execPath, ['src/server.js'], {
